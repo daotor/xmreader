@@ -7,6 +7,7 @@
 - ✅ Markdown / GFM 渲染（表格、代码高亮、任务列表）
 - ✅ 多文件标签页
 - ✅ 本地图片自动路径解析
+- ✅ Mermaid 流程图 / 时序图渲染
 - ✅ 浅色主题，适配系统
 - ✅ 键盘快捷键
 - ✅ macOS `.app` 构建与 `.md` / `.mdc` 文件关联
@@ -37,6 +38,19 @@ kmread.exe file1.md file2.mdc
 # 注册 .md / .mdc 文件关联（双击即用）
 kmread.exe --register
 ```
+
+### Mermaid
+
+````markdown
+```mermaid
+sequenceDiagram
+  participant 用户 as 用户
+  participant 应用层 as 应用层
+  用户 ->> 应用层: 启动流程
+```
+````
+
+阅读态下会直接渲染为流程图；如果语法非法，会回退显示原始 Mermaid 源码和错误提示。
 
 ### macOS
 
