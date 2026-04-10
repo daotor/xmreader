@@ -27,9 +27,9 @@
       <p>Markdown 阅读器</p>
       <p class="empty-hint">
         使用方式：<br>
-        双击 .md 文件即可打开<br>
+        双击 <code>.md</code> / <code>.mdc</code> 文件即可打开<br>
         或命令行：<code>kmread.exe file.md</code><br>
-        也可直接拖放 <code>.md</code> / 图片文件到窗口打开
+        也可直接拖放 <code>.md</code> / <code>.mdc</code> / 图片文件到窗口打开
       </p>
     </div>
 
@@ -88,7 +88,7 @@ interface DropNotice {
   message: string
 }
 
-const MARKDOWN_EXTENSIONS = new Set(['.md', '.markdown', '.mdown', '.mkd', '.mkdn'])
+const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdc', '.markdown', '.mdown', '.mkd', '.mkdn'])
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
 const FILE_OPENED_EVENT = 'kmread:file-opened'
 

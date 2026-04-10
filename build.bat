@@ -76,7 +76,8 @@ echo.
 echo ============================================
 echo   Usage:
 echo     %EXE_NAME% test.md       - open a file
-echo     %EXE_NAME% --register    - associate .md files
+echo     %EXE_NAME% test.mdc      - open an AI rules file
+echo     %EXE_NAME% --register    - associate .md / .mdc files
 echo ============================================
 echo.
 pause

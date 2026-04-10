@@ -22,6 +22,13 @@
         "description": "Markdown Document",
         "iconName": "appicon",
         "role": "Viewer"
+      },
+      {
+        "ext": "mdc",
+        "name": "AI Agent Rules Document",
+        "description": "AI Agent Rules Markdown Document",
+        "iconName": "appicon",
+        "role": "Viewer"
       }
     ]
   }

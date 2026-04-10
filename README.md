@@ -9,7 +9,7 @@
 - ✅ 本地图片自动路径解析
 - ✅ 浅色主题，适配系统
 - ✅ 键盘快捷键
-- ✅ macOS `.app` 构建与 `.md` 文件关联
+- ✅ macOS `.app` 构建与 `.md` / `.mdc` 文件关联
 
 ## 构建
 
@@ -32,9 +32,9 @@ cd .. && wails build -o kmread.exe
 kmread.exe file.md
 
 # 打开多个文件
-kmread.exe file1.md file2.md
+kmread.exe file1.md file2.mdc
 
-# 注册 .md 文件关联（双击即用）
+# 注册 .md / .mdc 文件关联（双击即用）
 kmread.exe --register
 ```
 
@@ -49,6 +49,9 @@ open build/bin/kmread.app
 
 # 通过系统文件关联打开
 open -a KMRead test.md
+
+# 打开 AI Agent rules 文件
+open -a KMRead rules.mdc
 ```
 
 ## 技术栈

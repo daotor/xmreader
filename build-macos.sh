@@ -87,6 +87,7 @@ echo "============================================"
 echo "  Usage:"
 echo "    open \"$APP_BUNDLE\"                  - launch app"
 echo "    open -a KMRead test.md               - open a file"
+echo "    open -a KMRead rules.mdc             - open an AI rules file"
 if [ -f "$DMG_PATH" ]; then
     echo "    open \"$DMG_PATH\"                    - mount installer package"
 fi

@@ -43,10 +43,12 @@ func registerWindows(exePath string) error {
 	// Use reg add directly (avoids encoding issues with .reg files)
 	cmds := [][]string{
 		{"add", `HKCU\Software\Classes\.md`, "/ve", "/d", "kmread.markdown", "/f"},
+		{"add", `HKCU\Software\Classes\.mdc`, "/ve", "/d", "kmread.markdown", "/f"},
 		{"add", `HKCU\Software\Classes\kmread.markdown`, "/ve", "/d", "Markdown Document", "/f"},
 		{"add", `HKCU\Software\Classes\kmread.markdown\DefaultIcon`, "/ve", "/d", exePath + ",0", "/f"},
 		{"add", `HKCU\Software\Classes\kmread.markdown\shell\open\command`, "/ve", "/d", `"` + exePath + `" "%1"`, "/f"},
 		{"add", `HKCU\Software\Classes\.md\OpenWithProgids`, "/v", "kmread.markdown", "/d", "", "/f"},
+		{"add", `HKCU\Software\Classes\.mdc\OpenWithProgids`, "/v", "kmread.markdown", "/d", "", "/f"},
 	}
 
 	for _, args := range cmds {
@@ -58,7 +60,7 @@ func registerWindows(exePath string) error {
 		}
 	}
 
-	log.Println("✓ .md 文件关联已注册成功（双击 .md 文件将使用 KMRead 打开）")
+	log.Println("✓ .md / .mdc 文件关联已注册成功（双击文件将使用 KMRead 打开）")
 	return nil
 }
 
