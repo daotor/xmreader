@@ -1,5 +1,5 @@
 :root {
-  --be-bg: #ffffff;
+  --be-bg: #f8f3e9;
   --be-text: #1a1a1a;
   --be-text-secondary: #6b7280;
   --be-border: #e5e7eb;
@@ -7,19 +7,22 @@
   --be-primary-light: #eff6ff;
   --be-code-bg: #f3f4f6;
   --be-code-body-bg: #eaebee;
+  --be-inline-code-bg: #eadfce;
+  --be-inline-code-border: rgba(139, 118, 84, 0.28);
+  --be-inline-code-text: #3d3124;
   --be-blockquote-border: #d1d5db;
   --be-hr-color: #e5e7eb;
   --be-placeholder: #9ca3af;
-  --be-table-border: rgba(148, 163, 184, 0.26);
-  --be-table-divider: rgba(148, 163, 184, 0.18);
-  --be-table-bg: rgba(255, 255, 255, 0.82);
-  --be-table-header-bg: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 0.94));
+  --be-table-border: rgba(154, 142, 124, 0.22);
+  --be-table-divider: rgba(154, 142, 124, 0.15);
+  --be-table-bg: rgba(255, 250, 243, 0.9);
+  --be-table-header-bg: rgba(246, 238, 225, 0.98);
   --be-table-header-text: #0f172a;
-  --be-table-row-alt: rgba(248, 250, 252, 0.72);
-  --be-table-row-hover: rgba(219, 234, 254, 0.42);
-  --be-table-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-  --be-table-inline-code-bg: rgba(15, 23, 42, 0.05);
-  --be-table-inline-code-border: rgba(148, 163, 184, 0.22);
+  --be-table-row-alt: rgba(248, 241, 230, 0.58);
+  --be-table-row-hover: rgba(226, 217, 201, 0.52);
+  --be-table-shadow: 0 18px 40px rgba(60, 46, 24, 0.08);
+  --be-table-inline-code-bg: rgba(225, 214, 196, 0.72);
+  --be-table-inline-code-border: rgba(154, 142, 124, 0.3);
   --be-radius: 4px;
   --be-hover-bg: #f3f4f6;
   --be-active-bg: #e8f0fe;
@@ -30,32 +33,35 @@
 
 /* === 深色主题（编辑器本体） === */
 .block-editor.theme-dark {
-  --be-bg: #1e1e1e;
+  --be-bg: #17181b;
   --be-text: #e0e0e0;
   --be-text-secondary: #9ca3af;
-  --be-border: #3a3a3a;
+  --be-border: #35373c;
   --be-primary: #60a5fa;
   --be-primary-light: #1e3a5f;
-  --be-code-bg: #2a2a2a;
-  --be-code-body-bg: #1e1e1e;
+  --be-code-bg: #26282d;
+  --be-code-body-bg: #17181b;
+  --be-inline-code-bg: #343840;
+  --be-inline-code-border: rgba(129, 135, 148, 0.34);
+  --be-inline-code-text: #f3f4f6;
   --be-blockquote-border: #555;
-  --be-hr-color: #3a3a3a;
+  --be-hr-color: #35373c;
   --be-placeholder: #666;
-  --be-table-border: rgba(148, 163, 184, 0.22);
-  --be-table-divider: rgba(148, 163, 184, 0.16);
-  --be-table-bg: rgba(15, 23, 42, 0.74);
-  --be-table-header-bg: linear-gradient(180deg, rgba(51, 65, 85, 0.96), rgba(30, 41, 59, 0.98));
+  --be-table-border: rgba(124, 128, 138, 0.26);
+  --be-table-divider: rgba(124, 128, 138, 0.18);
+  --be-table-bg: rgba(33, 34, 39, 0.92);
+  --be-table-header-bg: rgba(56, 58, 64, 0.98);
   --be-table-header-text: #f8fafc;
-  --be-table-row-alt: rgba(15, 23, 42, 0.56);
-  --be-table-row-hover: rgba(37, 99, 235, 0.16);
-  --be-table-shadow: 0 24px 56px rgba(2, 6, 23, 0.34);
-  --be-table-inline-code-bg: rgba(148, 163, 184, 0.12);
-  --be-table-inline-code-border: rgba(148, 163, 184, 0.18);
+  --be-table-row-alt: rgba(41, 43, 49, 0.9);
+  --be-table-row-hover: rgba(71, 74, 82, 0.9);
+  --be-table-shadow: 0 24px 56px rgba(0, 0, 0, 0.32);
+  --be-table-inline-code-bg: rgba(78, 82, 91, 0.88);
+  --be-table-inline-code-border: rgba(124, 128, 138, 0.34);
   --be-hover-bg: #333;
   --be-active-bg: #1e3a5f;
   --be-icon: #bbb;
   --be-icon-hover: #e0e0e0;
-  --be-toolbar-bg: #353535;
+  --be-toolbar-bg: #2c2e33;
 }
 
 .block-editor.theme-dark .highlight-block--info {
@@ -73,15 +79,18 @@
 
 /* === 深色主题（body 级：App 外壳 + Teleport 弹出层） === */
 body.be-theme-dark {
-  background: #1e1e1e;
+  background: #17181b;
   color: #e0e0e0;
-  --be-bg: #1e1e1e;
+  --be-bg: #17181b;
   --be-text: #e0e0e0;
   --be-text-secondary: #9ca3af;
-  --be-border: #3a3a3a;
+  --be-border: #35373c;
   --be-primary: #60a5fa;
   --be-primary-light: #1e3a5f;
-  --be-code-bg: #2a2a2a;
+  --be-code-bg: #26282d;
+  --be-inline-code-bg: #343840;
+  --be-inline-code-border: rgba(129, 135, 148, 0.34);
+  --be-inline-code-text: #f3f4f6;
   --be-hover-bg: #333;
   --be-active-bg: #1e3a5f;
   --be-icon: #bbb;
@@ -122,8 +131,8 @@ body.be-theme-dark {
 
 /* === 代码 === */
 .block-editor-content pre { background: var(--be-code-bg); border-radius: var(--be-radius); padding: 0.75em 1em; margin: 0.5em 0; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; line-height: 1.6; }
-.block-editor-content pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; color: inherit; }
-.block-editor-content code { background: var(--be-code-bg); border-radius: 3px; padding: 0.15em 0.35em; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; }
+.block-editor-content pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; color: inherit; border: none; }
+.block-editor-content code { background: var(--be-inline-code-bg, var(--be-code-bg)); border: 1px solid var(--be-inline-code-border, transparent); border-radius: 4px; padding: 0.15em 0.35em; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; color: var(--be-inline-code-text, inherit); }
 
 /* === 语法高亮（浅色 / GitHub 风格） === */
 .block-editor-content pre .hljs-comment,
@@ -204,23 +213,33 @@ body.be-theme-dark {
   border-collapse: separate;
   border-spacing: 0;
   border: 1px solid var(--be-table-border);
-  border-radius: 18px;
+  border-radius: 8px;
   overflow: hidden;
   background: var(--be-table-bg);
   box-shadow: var(--be-table-shadow);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
 }
 
 .block-editor-content th,
 .block-editor-content td {
-  padding: 0.9em 1.1em;
+  padding: 0.72em 0.95em;
   border-right: 1px solid var(--be-table-divider);
   border-bottom: 1px solid var(--be-table-divider);
   text-align: left;
   vertical-align: top;
-  line-height: 1.7;
+  line-height: 1.5;
   word-break: break-word;
   transition: background-color 0.18s ease;
+}
+
+.block-editor-content th p,
+.block-editor-content td p {
+  margin: 0;
+}
+
+.block-editor-content th > :not(:last-child),
+.block-editor-content td > :not(:last-child) {
+  margin-bottom: 0.3em;
 }
 
 .block-editor-content tr > :last-child {
