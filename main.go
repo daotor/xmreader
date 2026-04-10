@@ -107,15 +107,19 @@ func main() {
 	appMenu := menu.NewMenu()
 
 	err := wails.Run(&options.App{
-		Title:         "KMRead",
-		Width:         1024,
-		Height:        768,
-		MinWidth:      400,
-		MinHeight:     300,
-		Menu:          appMenu,
-		OnStartup:     app.startup,
+		Title:     "KMRead",
+		Width:     1024,
+		Height:    768,
+		MinWidth:  400,
+		MinHeight: 300,
+		Menu:      appMenu,
+		OnStartup: app.startup,
 		Bind: []interface{}{
 			app,
+		},
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop:     true,
+			DisableWebViewDrop: true,
 		},
 		AssetServer:   &assetserver.Options{Assets: assets},
 		DisableResize: false,

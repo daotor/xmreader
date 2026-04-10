@@ -1,4 +1,4 @@
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 /**
  * 全局主题管理（与外层页面主题同步）
@@ -11,6 +11,8 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 const isDark = ref(false)
 let initialized = false
 let observer: MutationObserver | null = null
+let mediaQuery: MediaQueryList | null = null
+let handleMediaChange: ((event: MediaQueryListEvent) => void) | null = null
 
 /** 将当前主题状态同步到 DOM */
 function applyTheme() {
@@ -24,7 +26,9 @@ function applyTheme() {
 /** 从外层页面读取当前主题 */
 function readExternalTheme(): boolean {
   const theme = document.documentElement.getAttribute('data-theme')
-  return theme === 'dark'
+  if (theme === 'dark') return true
+  if (theme === 'light') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 /** 初始化：监听外层页面主题变化 */
@@ -50,6 +54,18 @@ function init() {
     attributeFilter: ['data-theme']
   })
 
+  mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+  handleMediaChange = () => {
+    if (document.documentElement.hasAttribute('data-theme')) return
+    isDark.value = mediaQuery?.matches ?? false
+    applyTheme()
+  }
+  if (mediaQuery.addEventListener) {
+    mediaQuery.addEventListener('change', handleMediaChange)
+  } else {
+    mediaQuery.addListener(handleMediaChange)
+  }
+
   // 首次应用（需等 DOM 就绪）
   requestAnimationFrame(() => applyTheme())
 }
@@ -60,6 +76,15 @@ function destroy() {
     observer.disconnect()
     observer = null
   }
+  if (mediaQuery && handleMediaChange) {
+    if (mediaQuery.removeEventListener) {
+      mediaQuery.removeEventListener('change', handleMediaChange)
+    } else {
+      mediaQuery.removeListener(handleMediaChange)
+    }
+  }
+  mediaQuery = null
+  handleMediaChange = null
   initialized = false
 }
 
@@ -84,6 +109,10 @@ export function useTheme() {
     init()
     // 每次挂载时重新同步 DOM（防止动态渲染的 .block-editor 未被应用）
     requestAnimationFrame(() => applyTheme())
+  })
+
+  onBeforeUnmount(() => {
+    destroy()
   })
 
   return {

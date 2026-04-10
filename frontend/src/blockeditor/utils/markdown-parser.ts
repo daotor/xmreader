@@ -11,6 +11,10 @@
 
 import { marked } from 'marked'
 
+export interface MarkdownToHtmlOptions {
+  documentUrl?: string
+}
+
 /**
  * GFM Alert 类型映射到高亮块类型
  */
@@ -50,15 +54,96 @@ function preprocessAlerts(md: string): string {
   })
 }
 
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function isWindowsDrivePath(path: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(path)
+}
+
+export function filePathToFileUrl(path: string): string {
+  const normalized = path.replace(/\\/g, '/')
+  if (normalized.startsWith('//')) {
+    return `file:${encodeURI(normalized)}`
+  }
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${encodeURI(normalized)}`
+  }
+  if (normalized.startsWith('/')) {
+    return `file://${encodeURI(normalized)}`
+  }
+  return encodeURI(normalized)
+}
+
+function toBaseUrl(documentUrl: string): string {
+  if (isWindowsDrivePath(documentUrl)) {
+    return filePathToFileUrl(documentUrl)
+  }
+
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(documentUrl)) {
+    return documentUrl
+  }
+
+  return filePathToFileUrl(documentUrl)
+}
+
+function resolveAssetUrl(url: string, documentUrl?: string): string {
+  if (!url) {
+    return url
+  }
+
+  if (isWindowsDrivePath(url)) {
+    return filePathToFileUrl(url)
+  }
+
+  const normalizedUrl = url.replace(/\\/g, '/')
+
+  if (normalizedUrl.startsWith('/')) {
+    return filePathToFileUrl(normalizedUrl)
+  }
+
+  if (!documentUrl) {
+    return normalizedUrl
+  }
+
+  if (/^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/\/|#)/.test(normalizedUrl)) {
+    return normalizedUrl
+  }
+
+  try {
+    return new URL(normalizedUrl, toBaseUrl(documentUrl)).href
+  } catch (error) {
+    console.warn('[MarkdownParser] failed to resolve asset url:', url, error)
+    return normalizedUrl
+  }
+}
+
 /**
  * 将 GFM Markdown 解析为 HTML（供 TipTap setContent 使用）
  */
-export function markdownToHtml(md: string): string {
+export function markdownToHtml(md: string, options: MarkdownToHtmlOptions = {}): string {
   // 先预处理 Alert 语法
   const preprocessed = preprocessAlerts(md)
+  const renderer = new marked.Renderer()
+
+  renderer.image = function (...args: any[]) {
+    const image = args[0]
+    const href = typeof image === 'string' ? image : image?.href || ''
+    const title = (typeof image === 'object' ? image?.title : args[1]) || ''
+    const text = (typeof image === 'object' ? image?.text : args[2]) || ''
+    const resolvedHref = resolveAssetUrl(href, options.documentUrl)
+    const titleAttr = title ? ` title="${escapeHtmlAttr(title)}"` : ''
+    return `<img src="${escapeHtmlAttr(resolvedHref)}" alt="${escapeHtmlAttr(text)}"${titleAttr}>`
+  }
 
   // 使用 marked 解析为 HTML（启用 GFM）
   const html = marked.parse(preprocessed, {
+    renderer,
     gfm: true,
     breaks: false,
   })

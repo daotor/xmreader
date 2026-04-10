@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { EditorContent } from "@tiptap/vue-3";
-import { useBlockEditor } from "../composables/useBlockEditor";
+import { resolveBlockEditorContent, useBlockEditor } from "../composables/useBlockEditor";
 import { useSlashMenu } from "../composables/useSlashMenu";
 import { useSideMenu } from "../composables/useSideMenu";
 import { useImageUpload } from "../composables/useImageUpload";
@@ -16,8 +16,10 @@ import { markdownToHtml } from "../utils/markdown-parser";
 import { textIconMap, svgIconMap, isTextIcon, getBlockIconKey } from "../config/icons";
 
 const props = withDefaults(defineProps<BlockEditorProps>(), {
+  contentFormat: "json",
   editable: true,
   placeholder: '输入 "/" 插入内容块…',
+  readerMode: false,
 });
 
 const emit = defineEmits<{
@@ -29,6 +31,7 @@ const emit = defineEmits<{
 // ==================== 斜杠菜单 ====================
 const slash = useSlashMenu();
 const slashMenuPos = ref({ top: 0, left: 0 });
+const isInteractive = computed(() => !props.readerMode && props.editable);
 
 // ==================== 主题 ====================
 useTheme(); // 初始化主题监听，同步外层页面主题
@@ -36,8 +39,10 @@ useTheme(); // 初始化主题监听，同步外层页面主题
 // ==================== 编辑器核心 ====================
 const { editor } = useBlockEditor({
   content: props.content,
-  editable: props.editable,
+  contentFormat: props.contentFormat,
+  editable: isInteractive.value,
   placeholder: props.placeholder,
+  documentUrl: props.documentUrl,
   onUpdate: (json) => emit("update:content", JSON.stringify(json)),
   onSave: (json) => emit("save", JSON.stringify(json)),
   slashSuggestion: {
@@ -51,7 +56,7 @@ const { editor } = useBlockEditor({
         updateSlashMenuPosition();
       },
       onExit: () => slash.onExit(),
-      onKeyDown: (props: any) => slash.onKeyDown(props),
+      onKeyDown: (suggestionKeyProps: any) => slash.onKeyDown(suggestionKeyProps),
     }),
   },
 });
@@ -86,6 +91,7 @@ function updateSlashMenuPosition() {
 }
 
 function handleEditorMouseMove(event: MouseEvent) {
+  if (!isInteractive.value) return;
   if (!editor.value) return;
   // 拖拽进行中时不更新手柄位置
   if (isDragging.value) return;
@@ -144,11 +150,13 @@ function refreshDragHandlePos() {
 }
 
 function handleEditorScroll() {
+  if (!isInteractive.value) return;
   if (dragHandlePos.value) refreshDragHandlePos();
   if (plusButtonPos.value) updatePlusButton();
 }
 
 function handleDragHandleClick() {
+  if (!isInteractive.value) return;
   if (dragHandlePos.value && hoveredNodePos.value !== null) {
     isHoveringHandle.value = false;
     const menuWidth = 200;
@@ -175,11 +183,13 @@ function handleDragHandleClick() {
 }
 
 function handleSideMenuCommand(item: MenuItem) {
+  if (!isInteractive.value) return;
   if (editor.value) sideMenu.executeCommand(editor.value, item);
 }
 
 // ==================== 拖拽排序逻辑 ====================
 function handleHandleMouseDown(event: MouseEvent) {
+  if (!isInteractive.value) return;
   if (!editor.value || hoveredNodePos.value === null) return;
   event.preventDefault();
   dragStartPoint.value = { x: event.clientX, y: event.clientY };
@@ -308,6 +318,10 @@ function performBlockMove() {
 }
 
 function updatePlusButton() {
+  if (!isInteractive.value) {
+    plusButtonPos.value = null;
+    return;
+  }
   if (!editor.value) return;
   const { state: s, view } = editor.value;
   const $pos = s.doc.resolve(s.selection.from);
@@ -322,19 +336,56 @@ function updatePlusButton() {
 }
 
 function handlePlusClick() {
+  if (!isInteractive.value) return;
   if (!editor.value) return;
   editor.value.chain().focus().insertContent("/").run();
 }
 
 // ==================== 图片拖拽和粘贴 ====================
 function onDrop(event: DragEvent) {
+  if (!isInteractive.value) return;
+  event.preventDefault();
   imageUpload.handleDrop(event);
 }
 function onPaste(event: ClipboardEvent) {
+  if (!isInteractive.value) return;
   imageUpload.handlePaste(event);
+}
+function onDragOver(event: DragEvent) {
+  if (!isInteractive.value) return;
+  event.preventDefault();
 }
 
 // ==================== 生命周期 ====================
+watch(
+  [editor, () => props.content, () => props.contentFormat, () => props.documentUrl],
+  ([ed, content, contentFormat, documentUrl]) => {
+    if (!ed) return;
+    const nextContent = resolveBlockEditorContent({
+      content,
+      contentFormat,
+      documentUrl,
+    });
+    ed.commands.setContent(nextContent, { emitUpdate: false });
+  },
+  { immediate: true },
+);
+
+watch(
+  [editor, isInteractive],
+  ([ed, interactive]) => {
+    if (!ed) return;
+    ed.setEditable(interactive);
+    if (!interactive) {
+      plusButtonPos.value = null;
+      dragHandlePos.value = null;
+      sideMenu.close();
+      slash.onExit();
+    }
+  },
+  { immediate: true },
+);
+
 watch(
   editor,
   (ed) => {
@@ -357,12 +408,12 @@ defineExpose({
   },
   setMarkdown: (md: string) => {
     if (!editor.value) return;
-    const html = markdownToHtml(md);
-    editor.value.commands.setContent(html);
+    const html = markdownToHtml(md, { documentUrl: props.documentUrl });
+    editor.value.commands.setContent(html, { emitUpdate: false });
   },
   setJSON: (json: object) => {
     if (!editor.value) return;
-    editor.value.commands.setContent(json);
+    editor.value.commands.setContent(json, { emitUpdate: false });
   },
   focus: () => editor.value?.commands.focus(),
   isEmpty: () => editor.value?.isEmpty ?? true,
@@ -370,21 +421,22 @@ defineExpose({
 </script>
 
 <template>
-  <div class="block-editor" @mousemove="handleEditorMouseMove">
+  <div class="block-editor" :class="{ 'block-editor--reader': !isInteractive }" @mousemove="handleEditorMouseMove">
     <!-- 顶部工具条 -->
     <EditorToolbar
+      v-if="isInteractive"
       :editor="editor ?? null"
       :document-url="props.documentUrl"
       @open-image-picker="imageUpload.openFilePicker"
     />
 
     <!-- 主编辑区 -->
-    <div class="block-editor-main" @drop.prevent="onDrop" @paste="onPaste" @dragover.prevent
+    <div class="block-editor-main" @drop="onDrop" @paste="onPaste" @dragover="onDragOver"
       @scroll="handleEditorScroll">
       <EditorContent v-if="editor" :editor="editor" class="block-editor-wrapper" />
 
       <!-- 上传进度 -->
-      <div v-if="imageUpload.isUploading.value" class="upload-overlay">
+      <div v-if="isInteractive && imageUpload.isUploading.value" class="upload-overlay">
         <div class="upload-progress">
           <span>正在上传图片…</span>
         </div>
@@ -392,10 +444,10 @@ defineExpose({
     </div>
 
     <!-- 选中文本气泡工具条 -->
-    <BubbleToolbar :editor="editor ?? null" />
+    <BubbleToolbar v-if="isInteractive" :editor="editor ?? null" />
 
     <!-- 拖拽手柄 -->
-    <div v-if="dragHandlePos && !isDragging" class="drag-handle" :style="{
+    <div v-if="isInteractive && dragHandlePos && !isDragging" class="drag-handle" :style="{
       top: dragHandlePos.top + 'px',
       left: dragHandlePos.left + 'px',
     }" @mousedown.prevent="handleHandleMouseDown" @mouseenter="handleHandleEnter" @mouseleave="handleHandleLeave"
@@ -406,14 +458,14 @@ defineExpose({
     </div>
 
     <!-- 拖拽放置指示器 -->
-    <div v-if="isDragging && dropIndicator" class="drop-indicator" :style="{
+    <div v-if="isInteractive && isDragging && dropIndicator" class="drop-indicator" :style="{
       top: dropIndicator.top + 'px',
       left: dropIndicator.left + 'px',
       width: dropIndicator.width + 'px',
     }"></div>
 
     <!-- "+" 按钮 -->
-    <button v-if="plusButtonPos && !slash.isOpen.value" class="plus-button" :style="{
+    <button v-if="isInteractive && plusButtonPos && !slash.isOpen.value" class="plus-button" :style="{
       top: plusButtonPos.top + 'px',
       left: plusButtonPos.left + 'px',
     }" @click="handlePlusClick" @mouseenter="handleHandleEnter" @mouseleave="handleHandleLeave" title="点击插入内容块">
@@ -422,7 +474,7 @@ defineExpose({
 
     <!-- 斜杠菜单 (菜单 A) -->
     <Teleport to="body">
-      <div v-if="slash.isOpen.value" :style="{
+      <div v-if="isInteractive && slash.isOpen.value" :style="{
         position: 'fixed',
         top: slashMenuPos.top + 'px',
         left: slashMenuPos.left + 'px',
@@ -435,7 +487,7 @@ defineExpose({
 
     <!-- 侧边菜单 (菜单 B) -->
     <Teleport to="body">
-      <SideMenu :is-open="sideMenu.isOpen.value" :position="sideMenu.position.value"
+      <SideMenu v-if="isInteractive" :is-open="sideMenu.isOpen.value" :position="sideMenu.position.value"
         :type-items="sideMenu.typeItems.value" :action-items="sideMenu.actionItems.value" @close="sideMenu.close"
         @execute-command="handleSideMenuCommand" @delete-block="() => editor && sideMenu.deleteBlock(editor)"
         @duplicate-block="() => editor && sideMenu.duplicateBlock(editor)" />
@@ -463,6 +515,19 @@ defineExpose({
 .block-editor-wrapper {
   max-width: 720px;
   margin: 0 auto;
+}
+
+.block-editor--reader {
+  min-height: 100%;
+}
+
+.block-editor--reader .block-editor-main {
+  overflow: visible;
+  padding: 28px 32px 40px;
+}
+
+.block-editor--reader .block-editor-wrapper {
+  max-width: 860px;
 }
 
 .drag-handle {

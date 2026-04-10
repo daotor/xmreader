@@ -14,6 +14,12 @@
       </div>
     </div>
 
+    <Transition name="notice">
+      <div v-if="dropNotice" class="drop-notice" :class="`drop-notice--${dropNotice.type}`">
+        {{ dropNotice.message }}
+      </div>
+    </Transition>
+
     <!-- Empty state -->
     <div v-if="!loading && files.length === 0" class="empty-state">
       <div class="empty-icon">📄</div>
@@ -22,7 +28,8 @@
       <p class="empty-hint">
         使用方式：<br>
         双击 .md 文件即可打开<br>
-        或命令行：<code>kmread.exe file.md</code>
+        或命令行：<code>kmread.exe file.md</code><br>
+        也可直接拖放 <code>.md</code> / 图片文件到窗口打开
       </p>
     </div>
 
@@ -33,8 +40,15 @@
     </div>
 
     <!-- Markdown content -->
-    <div v-if="currentFile && !loading" class="reader">
-      <div class="markdown-body" v-html="renderedContent"></div>
+    <div v-if="currentFile && !loading" ref="readerContainer" class="reader" @scroll="handleReaderScroll">
+      <BlockEditor
+        :key="currentFile.path"
+        :content="currentFile.content"
+        content-format="markdown"
+        :document-url="currentFile.path"
+        :editable="false"
+        :reader-mode="true"
+      />
     </div>
 
     <!-- Scroll to top button -->
@@ -44,28 +58,24 @@
       @click="scrollToTop"
       title="回到顶部"
     >↑</button>
+
+    <Transition name="drop-overlay">
+      <div v-if="isDragActive" class="drop-overlay">
+        <div class="drop-overlay-card">
+          <div class="drop-overlay-title">释放以打开文件</div>
+          <div class="drop-overlay-text">支持本地 Markdown 与图片文件</div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { marked } from 'marked'
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
-import 'github-markdown-css'
-
-// Add Highlight.js dark theme for system dark mode
-const darkStyle = document.createElement('link')
-darkStyle.rel = 'stylesheet'
-darkStyle.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
-darkStyle.media = '(prefers-color-scheme: dark)'
-document.head.appendChild(darkStyle)
-
-// Add Google Fonts
-const link = document.createElement('link')
-link.rel = 'stylesheet'
-link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap'
-document.head.appendChild(link)
+import BlockEditor from './blockeditor/components/BlockEditor.vue'
+import { filePathToFileUrl } from './blockeditor/utils/markdown-parser'
+import { GetFiles, ReadFile } from '../wailsjs/go/main/App'
+import { OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime'
 
 interface FileInfo {
   path: string
@@ -73,95 +83,229 @@ interface FileInfo {
   content: string
 }
 
+interface DropNotice {
+  type: 'info' | 'error'
+  message: string
+}
+
+const MARKDOWN_EXTENSIONS = new Set(['.md', '.markdown', '.mdown', '.mkd', '.mkdn'])
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
+
 const files = ref<FileInfo[]>([])
 const currentIndex = ref(0)
 const loading = ref(true)
 const showScrollTop = ref(false)
+const readerContainer = ref<HTMLElement | null>(null)
+const isDragActive = ref(false)
+const dropNotice = ref<DropNotice | null>(null)
+let systemThemeMedia: MediaQueryList | null = null
+let cleanupThemeMediaListener: (() => void) | null = null
+let dragDepth = 0
+let noticeTimer: ReturnType<typeof setTimeout> | null = null
+let fileDropRegistered = false
 
 const currentFile = computed<FileInfo | null>(() => {
   return files.value[currentIndex.value] || null
 })
 
-function configureRenderer() {
-  const renderer = new marked.Renderer()
-
-  renderer.code = function (...args: any[]) {
-    const codeObj = args[0]
-    let code: string, lang: string
-    if (typeof codeObj === 'string') {
-      code = codeObj; lang = (args[1] as string) || ''
-    } else if (codeObj && typeof codeObj === 'object') {
-      code = (codeObj as any).text || ''; lang = (codeObj as any).lang || ''
-    } else {
-      code = String(codeObj || ''); lang = ''
-    }
-    let highlighted: string
-    if (lang && hljs.getLanguage(lang)) {
-      highlighted = hljs.highlight(code, { language: lang }).value
-    } else {
-      highlighted = hljs.highlightAuto(code).value
-    }
-    return `<pre class="hljs"><code class="language-${lang}">${highlighted}</code></pre>`
-  }
-
-  renderer.image = function (...args: any[]) {
-    const hrefObj = args[0]
-    let src: string, title: string, text: string
-    if (typeof hrefObj === 'string') {
-      src = hrefObj; title = (args[1] as string) || ''; text = (args[2] as string) || ''
-    } else if (hrefObj && typeof hrefObj === 'object') {
-      src = (hrefObj as any).href || ''
-      title = (args[1] as string) || (hrefObj as any).title || ''
-      text = (args[2] as string) || (hrefObj as any).text || ''
-    } else {
-      src = String(hrefObj || ''); title = ''; text = ''
-    }
-    if (src && !src.startsWith('http') && !src.startsWith('data:') && !src.startsWith('file://')) {
-      const basePath = currentFile.value?.path || ''
-      if (basePath) {
-        const sep = basePath.includes('\\') ? '\\' : '/'
-        const dir = basePath.substring(0, basePath.lastIndexOf(sep) + 1)
-        src = dir + src
-      }
-      src = 'file:///' + src.replace(/\\/g, '/')
-    }
-    return `<img src="${src}" alt="${text}" title="${title || ''}" loading="lazy" />`
-  }
-
-  marked.setOptions({ renderer, gfm: true, breaks: true })
+function getFileName(filePath: string): string {
+  return filePath.split(/[\\/]/).pop() || filePath
 }
 
-const renderedContent = computed(() => {
-  if (!currentFile.value) return ''
-  try { return marked(currentFile.value.content) as string }
-  catch { return '<p>渲染错误</p>' }
-})
+function getFileTitle(filePath: string): string {
+  const fileName = getFileName(filePath)
+  const extIndex = fileName.lastIndexOf('.')
+  return extIndex > 0 ? fileName.slice(0, extIndex) : fileName
+}
+
+function getFileExtension(filePath: string): string {
+  const fileName = getFileName(filePath).toLowerCase()
+  const extIndex = fileName.lastIndexOf('.')
+  return extIndex >= 0 ? fileName.slice(extIndex) : ''
+}
+
+function isMarkdownFile(filePath: string): boolean {
+  return MARKDOWN_EXTENSIONS.has(getFileExtension(filePath))
+}
+
+function isImageFile(filePath: string): boolean {
+  return IMAGE_EXTENSIONS.has(getFileExtension(filePath))
+}
+
+function escapeMarkdownAlt(text: string): string {
+  return text.replace(/([\\[\]])/g, '\\$1')
+}
+
+function buildImageMarkdown(filePath: string, title: string): string {
+  return `![${escapeMarkdownAlt(title)}](<${filePathToFileUrl(filePath)}>)`
+}
+
+function showDropNotice(type: DropNotice['type'], message: string) {
+  dropNotice.value = { type, message }
+  if (noticeTimer) {
+    clearTimeout(noticeTimer)
+  }
+  noticeTimer = setTimeout(() => {
+    dropNotice.value = null
+    noticeTimer = null
+  }, 4000)
+}
+
+function resetDragState() {
+  dragDepth = 0
+  isDragActive.value = false
+}
+
+function syncSystemTheme() {
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+}
+
+function setupSystemThemeSync() {
+  systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)')
+  const handleThemeChange = () => syncSystemTheme()
+  syncSystemTheme()
+
+  if (systemThemeMedia.addEventListener) {
+    systemThemeMedia.addEventListener('change', handleThemeChange)
+    cleanupThemeMediaListener = () => systemThemeMedia?.removeEventListener('change', handleThemeChange)
+  } else {
+    systemThemeMedia.addListener(handleThemeChange)
+    cleanupThemeMediaListener = () => systemThemeMedia?.removeListener(handleThemeChange)
+  }
+}
+
+async function createFileInfoFromPath(filePath: string): Promise<FileInfo | null> {
+  const title = getFileTitle(filePath)
+
+  if (isMarkdownFile(filePath)) {
+    const content = await ReadFile(filePath)
+    return { path: filePath, title, content }
+  }
+
+  if (isImageFile(filePath)) {
+    return {
+      path: filePath,
+      title,
+      content: buildImageMarkdown(filePath, title),
+    }
+  }
+
+  return null
+}
+
+async function openDroppedFiles(paths: string[]) {
+  const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)))
+  const supportedPaths = uniquePaths.filter((path) => isMarkdownFile(path) || isImageFile(path))
+  const unsupportedCount = uniquePaths.length - supportedPaths.length
+
+  if (supportedPaths.length === 0) {
+    showDropNotice('error', '仅支持拖放 Markdown 或图片文件')
+    return
+  }
+
+  loading.value = true
+  try {
+    const results = await Promise.allSettled(supportedPaths.map((path) => createFileInfoFromPath(path)))
+    const nextFiles: FileInfo[] = []
+    let failedCount = 0
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        nextFiles.push(result.value)
+      } else if (result.status === 'rejected') {
+        failedCount++
+        console.error('[KMRead] 打开拖放文件失败:', result.reason)
+      }
+    }
+
+    if (nextFiles.length === 0) {
+      showDropNotice('error', '拖放文件打开失败')
+      return
+    }
+
+    files.value = nextFiles
+    currentIndex.value = 0
+
+    const summary: string[] = [`已打开 ${nextFiles.length} 个文件`]
+    if (unsupportedCount > 0) summary.push(`忽略 ${unsupportedCount} 个不支持的文件`)
+    if (failedCount > 0) summary.push(`${failedCount} 个文件打开失败`)
+    showDropNotice(failedCount > 0 ? 'error' : 'info', summary.join('，'))
+  } finally {
+    loading.value = false
+  }
+}
+
+function isFileDragEvent(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types || []).includes('Files')
+}
+
+function handleWindowDragEnter(event: DragEvent) {
+  if (!isFileDragEvent(event)) return
+  event.preventDefault()
+  dragDepth += 1
+  isDragActive.value = true
+}
+
+function handleWindowDragOver(event: DragEvent) {
+  if (!isFileDragEvent(event)) return
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+  isDragActive.value = true
+}
+
+function handleWindowDragLeave(event: DragEvent) {
+  if (!isFileDragEvent(event)) return
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) {
+    isDragActive.value = false
+  }
+}
+
+function handleWindowDrop(event: DragEvent) {
+  if (!isFileDragEvent(event)) return
+  event.preventDefault()
+  resetDragState()
+}
+
+function registerFileDrop() {
+  if (fileDropRegistered) return
+  if (!(window as any).runtime?.OnFileDrop) {
+    setTimeout(registerFileDrop, 100)
+    return
+  }
+  fileDropRegistered = true
+  OnFileDrop((_x, _y, paths) => {
+    resetDragState()
+    void openDroppedFiles(paths)
+  }, false)
+}
 
 // Robust file loading: polls until Wails bindings are ready
 function loadFiles() {
   loading.value = true
   const poll = () => {
-    const win = window as any
-    // Check if Wails Go bindings are available
-    if (win.go?.main?.App?.GetFiles) {
-      win.go.main.App.GetFiles()
-        .then((data: FileInfo[]) => {
-          console.log('[KMRead] 收到文件:', data)
-          if (data && data.length > 0) {
-            files.value = data
-            document.title = `${data[0].title} - KMRead`
-          }
-          loading.value = false
-        })
-        .catch((err: any) => {
-          console.error('[KMRead] GetFiles 失败:', err)
-          loading.value = false
-        })
-    } else {
-      // Bindings not ready yet, retry
+    if (!(window as any).go?.main?.App?.GetFiles) {
       console.log('[KMRead] 等待 Wails 绑定...')
       setTimeout(poll, 100)
+      return
     }
+
+    GetFiles()
+      .then((data: FileInfo[]) => {
+        console.log('[KMRead] 收到文件:', data)
+        if (data && data.length > 0) {
+          files.value = data
+          document.title = `${data[0].title} - KMRead`
+        }
+        loading.value = false
+      })
+      .catch((err: any) => {
+        console.error('[KMRead] GetFiles 失败:', err)
+        loading.value = false
+      })
   }
   poll()
 }
@@ -177,18 +321,44 @@ function handleKeydown(e: KeyboardEvent) {
       if (e.ctrlKey && files.value.length > 1) { e.preventDefault(); currentIndex.value = Math.min(files.value.length - 1, currentIndex.value + 1) }
       break
     case 'Home':
-      if (e.ctrlKey) { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+      if (e.ctrlKey) { e.preventDefault(); scrollToTop() }
       break
     case 'End':
-      if (e.ctrlKey) { e.preventDefault(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }
+      if (e.ctrlKey) { e.preventDefault(); scrollToBottom() }
       break
   }
 }
 
-function handleScroll() { showScrollTop.value = window.scrollY > 300 }
-function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }) }
+function handleReaderScroll() {
+  showScrollTop.value = (readerContainer.value?.scrollTop || 0) > 300
+}
 
-watch(currentIndex, () => { nextTick(() => window.scrollTo({ top: 0 })) })
+function scrollToTop() {
+  readerContainer.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function scrollToBottom() {
+  if (!readerContainer.value) return
+  readerContainer.value.scrollTo({
+    top: readerContainer.value.scrollHeight,
+    behavior: 'smooth',
+  })
+}
+
+watch(currentIndex, () => {
+  nextTick(() => {
+    readerContainer.value?.scrollTo({ top: 0 })
+    showScrollTop.value = false
+  })
+})
+
+watch(currentFile, (file) => {
+  document.title = file ? `${file.title} - KMRead` : 'KMRead'
+  nextTick(() => {
+    readerContainer.value?.scrollTo({ top: 0 })
+    showScrollTop.value = false
+  })
+}, { immediate: true })
 
 function truncatePath(p: string): string {
   if (p.length <= 40) return p
@@ -196,14 +366,27 @@ function truncatePath(p: string): string {
 }
 
 onMounted(() => {
-  configureRenderer()
+  setupSystemThemeSync()
   loadFiles()
+  registerFileDrop()
   document.addEventListener('keydown', handleKeydown)
-  window.addEventListener('scroll', handleScroll)
+  window.addEventListener('dragenter', handleWindowDragEnter)
+  window.addEventListener('dragover', handleWindowDragOver)
+  window.addEventListener('dragleave', handleWindowDragLeave)
+  window.addEventListener('drop', handleWindowDrop)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
-  window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('dragenter', handleWindowDragEnter)
+  window.removeEventListener('dragover', handleWindowDragOver)
+  window.removeEventListener('dragleave', handleWindowDragLeave)
+  window.removeEventListener('drop', handleWindowDrop)
+  OnFileDropOff()
+  fileDropRegistered = false
+  cleanupThemeMediaListener?.()
+  if (noticeTimer) {
+    clearTimeout(noticeTimer)
+  }
 })
 </script>

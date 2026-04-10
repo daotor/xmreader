@@ -1,10 +1,14 @@
 import type { Editor } from '@tiptap/core'
 
+export type BlockEditorContentFormat = 'json' | 'markdown'
+
 export interface BlockEditorProps {
   content?: string
+  contentFormat?: BlockEditorContentFormat
   editable?: boolean
   placeholder?: string
   documentUrl?: string
+  readerMode?: boolean
 }
 
 export interface BlockEditorEmits {
@@ -15,15 +19,20 @@ export interface BlockEditorEmits {
 
 export interface BlockEditorExpose {
   getJSON(): object
+  getHTML(): string
   getMarkdown(): string
   setMarkdown(md: string): void
+  setJSON(json: object): void
   focus(): void
+  isEmpty(): boolean
 }
 
 export interface BlockEditorOptions {
   content?: string
+  contentFormat?: BlockEditorContentFormat
   editable?: boolean
   placeholder?: string
+  documentUrl?: string
   onUpdate?: (json: object) => void
   onSave?: (json: object) => void
 }

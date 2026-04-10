@@ -10,13 +10,31 @@ export interface UseBlockEditorOptions extends BlockEditorOptions {
 	slashSuggestion?: Partial<SuggestionOptions>
 }
 
+export function resolveBlockEditorContent(options: Pick<UseBlockEditorOptions, 'content' | 'contentFormat' | 'documentUrl'>) {
+	if (!options.content) {
+		return ''
+	}
+
+	if (options.contentFormat === 'markdown') {
+		return markdownToHtml(options.content, { documentUrl: options.documentUrl })
+	}
+
+	try {
+		return JSON.parse(options.content)
+	} catch (error) {
+		console.warn('[BlockEditor] failed to parse JSON content, fallback to markdown/html:', error)
+		return markdownToHtml(options.content, { documentUrl: options.documentUrl })
+	}
+}
+
 export function useBlockEditor(options: UseBlockEditorOptions) {
 	const editor = useEditor({
 		extensions: getExtensions({
 			placeholder: options.placeholder,
 			slashSuggestion: options.slashSuggestion,
+			openLinksOnClick: !(options.editable ?? true),
 		}),
-		content: options.content ? JSON.parse(options.content) : undefined,
+		content: resolveBlockEditorContent(options),
 		editable: options.editable ?? true,
 		editorProps: {
 			attributes: { class: 'block-editor-content' },
