@@ -75,7 +75,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import BlockEditor from './blockeditor/components/BlockEditor.vue'
 import { filePathToFileUrl } from './blockeditor/utils/markdown-parser'
 import { GetFiles, ReadFile } from '../wailsjs/go/main/App'
-import { OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime'
+import { EventsOn, OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime'
 
 interface FileInfo {
   path: string
@@ -90,6 +90,7 @@ interface DropNotice {
 
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.markdown', '.mdown', '.mkd', '.mkdn'])
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
+const FILE_OPENED_EVENT = 'kmread:file-opened'
 
 const files = ref<FileInfo[]>([])
 const currentIndex = ref(0)
@@ -103,6 +104,7 @@ let cleanupThemeMediaListener: (() => void) | null = null
 let dragDepth = 0
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let fileDropRegistered = false
+let removeFileOpenListener: (() => void) | null = null
 
 const currentFile = computed<FileInfo | null>(() => {
   return files.value[currentIndex.value] || null
@@ -195,12 +197,41 @@ async function createFileInfoFromPath(filePath: string): Promise<FileInfo | null
 }
 
 async function openDroppedFiles(paths: string[]) {
+  await openPaths(paths, 'replace')
+}
+
+function applyOpenedFiles(nextFiles: FileInfo[], mode: 'replace' | 'append') {
+  if (mode === 'replace' || files.value.length === 0) {
+    files.value = nextFiles
+    currentIndex.value = 0
+    return
+  }
+
+  const mergedFiles = [...files.value]
+  let nextIndex = currentIndex.value
+
+  for (const file of nextFiles) {
+    const existingIndex = mergedFiles.findIndex((item) => item.path === file.path)
+    if (existingIndex >= 0) {
+      mergedFiles[existingIndex] = file
+      nextIndex = existingIndex
+    } else {
+      mergedFiles.push(file)
+      nextIndex = mergedFiles.length - 1
+    }
+  }
+
+  files.value = mergedFiles
+  currentIndex.value = nextIndex
+}
+
+async function openPaths(paths: string[], mode: 'replace' | 'append') {
   const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)))
   const supportedPaths = uniquePaths.filter((path) => isMarkdownFile(path) || isImageFile(path))
   const unsupportedCount = uniquePaths.length - supportedPaths.length
 
   if (supportedPaths.length === 0) {
-    showDropNotice('error', '仅支持拖放 Markdown 或图片文件')
+    showDropNotice('error', '仅支持打开 Markdown 或图片文件')
     return
   }
 
@@ -220,12 +251,11 @@ async function openDroppedFiles(paths: string[]) {
     }
 
     if (nextFiles.length === 0) {
-      showDropNotice('error', '拖放文件打开失败')
+      showDropNotice('error', '文件打开失败')
       return
     }
 
-    files.value = nextFiles
-    currentIndex.value = 0
+    applyOpenedFiles(nextFiles, mode)
 
     const summary: string[] = [`已打开 ${nextFiles.length} 个文件`]
     if (unsupportedCount > 0) summary.push(`忽略 ${unsupportedCount} 个不支持的文件`)
@@ -281,6 +311,18 @@ function registerFileDrop() {
     resetDragState()
     void openDroppedFiles(paths)
   }, false)
+}
+
+function registerFileOpenEvent() {
+  if (removeFileOpenListener) return
+  if (!(window as any).runtime?.EventsOn) {
+    setTimeout(registerFileOpenEvent, 100)
+    return
+  }
+
+  removeFileOpenListener = EventsOn(FILE_OPENED_EVENT, (filePath: string) => {
+    void openPaths([filePath], 'append')
+  })
 }
 
 // Robust file loading: polls until Wails bindings are ready
@@ -369,6 +411,7 @@ onMounted(() => {
   setupSystemThemeSync()
   loadFiles()
   registerFileDrop()
+  registerFileOpenEvent()
   document.addEventListener('keydown', handleKeydown)
   window.addEventListener('dragenter', handleWindowDragEnter)
   window.addEventListener('dragover', handleWindowDragOver)
@@ -384,6 +427,8 @@ onUnmounted(() => {
   window.removeEventListener('drop', handleWindowDrop)
   OnFileDropOff()
   fileDropRegistered = false
+  removeFileOpenListener?.()
+  removeFileOpenListener = null
   cleanupThemeMediaListener?.()
   if (noticeTimer) {
     clearTimeout(noticeTimer)

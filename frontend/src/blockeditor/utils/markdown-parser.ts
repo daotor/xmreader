@@ -15,6 +15,9 @@ export interface MarkdownToHtmlOptions {
   documentUrl?: string
 }
 
+// WebView2 inside Wails does not reliably render direct file:// image URLs.
+const LOCAL_FILE_ROUTE_PREFIX = '/__kmread_local_file__/'
+
 /**
  * GFM Alert 类型映射到高亮块类型
  */
@@ -80,6 +83,62 @@ export function filePathToFileUrl(path: string): string {
   return encodeURI(normalized)
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary)
+}
+
+function encodePathForLocalAssetRoute(path: string): string {
+  const bytes = new TextEncoder().encode(path)
+  return bytesToBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+}
+
+function filePathToLocalAssetUrl(path: string): string {
+  return `${LOCAL_FILE_ROUTE_PREFIX}${encodePathForLocalAssetRoute(path)}`
+}
+
+function fileUrlToFilePath(fileUrl: string): string {
+  try {
+    const parsedUrl = new URL(fileUrl)
+    if (parsedUrl.protocol !== 'file:') {
+      return fileUrl
+    }
+
+    const decodedPath = decodeURIComponent(parsedUrl.pathname)
+    if (parsedUrl.host) {
+      return `\\\\${parsedUrl.host}${decodedPath.replace(/\//g, '\\')}`
+    }
+
+    if (/^\/[a-zA-Z]:/.test(decodedPath)) {
+      return decodedPath.slice(1).replace(/\//g, '\\')
+    }
+
+    return decodedPath
+  } catch (error) {
+    console.warn('[MarkdownParser] failed to parse file url:', fileUrl, error)
+    return fileUrl
+  }
+}
+
+function toRenderableAssetUrl(url: string): string {
+  if (!url || url.startsWith(LOCAL_FILE_ROUTE_PREFIX)) {
+    return url
+  }
+
+  if (url.startsWith('file://')) {
+    return filePathToLocalAssetUrl(fileUrlToFilePath(url))
+  }
+
+  if (isWindowsDrivePath(url) || url.startsWith('/') || url.startsWith('\\\\')) {
+    return filePathToLocalAssetUrl(url)
+  }
+
+  return url
+}
+
 function toBaseUrl(documentUrl: string): string {
   if (isWindowsDrivePath(documentUrl)) {
     return filePathToFileUrl(documentUrl)
@@ -97,29 +156,37 @@ function resolveAssetUrl(url: string, documentUrl?: string): string {
     return url
   }
 
+  if (url.startsWith(LOCAL_FILE_ROUTE_PREFIX)) {
+    return url
+  }
+
   if (isWindowsDrivePath(url)) {
-    return filePathToFileUrl(url)
+    return toRenderableAssetUrl(filePathToFileUrl(url))
   }
 
   const normalizedUrl = url.replace(/\\/g, '/')
 
+  if (normalizedUrl.startsWith(LOCAL_FILE_ROUTE_PREFIX)) {
+    return normalizedUrl
+  }
+
   if (normalizedUrl.startsWith('/')) {
-    return filePathToFileUrl(normalizedUrl)
+    return toRenderableAssetUrl(filePathToFileUrl(normalizedUrl))
   }
 
   if (!documentUrl) {
-    return normalizedUrl
+    return toRenderableAssetUrl(normalizedUrl)
   }
 
   if (/^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/\/|#)/.test(normalizedUrl)) {
-    return normalizedUrl
+    return toRenderableAssetUrl(normalizedUrl)
   }
 
   try {
-    return new URL(normalizedUrl, toBaseUrl(documentUrl)).href
+    return toRenderableAssetUrl(new URL(normalizedUrl, toBaseUrl(documentUrl)).href)
   } catch (error) {
     console.warn('[MarkdownParser] failed to resolve asset url:', url, error)
-    return normalizedUrl
+    return toRenderableAssetUrl(normalizedUrl)
   }
 }
 

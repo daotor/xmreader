@@ -14,6 +14,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/menu"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
@@ -105,6 +106,11 @@ func main() {
 
 	app := NewApp(filePaths)
 	appMenu := menu.NewMenu()
+	if runtime.GOOS == "darwin" {
+		appMenu.Append(menu.AppMenu())
+		appMenu.Append(menu.EditMenu())
+		appMenu.Append(menu.WindowMenu())
+	}
 
 	err := wails.Run(&options.App{
 		Title:     "KMRead",
@@ -121,12 +127,19 @@ func main() {
 			EnableFileDrop:     true,
 			DisableWebViewDrop: true,
 		},
-		AssetServer:   &assetserver.Options{Assets: assets},
+		AssetServer: &assetserver.Options{
+			Assets:     assets,
+			Middleware: localFileAssetMiddleware(),
+		},
 		DisableResize: false,
 		Frameless:     false,
 		Windows: &windows.Options{
 			DisablePinchZoom:    false,
 			WebviewUserDataPath: filepath.Join(os.TempDir(), "kmread"),
+		},
+		Mac: &mac.Options{
+			DisableZoom: false,
+			OnFileOpen:  app.handleMacFileOpen,
 		},
 	})
 	if err != nil {
