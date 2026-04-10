@@ -1,0 +1,296 @@
+:root {
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-color: #ffffff;
+  --text-color: #1f2937;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --tab-bg: #f9fafb;
+  --tab-active-bg: #ffffff;
+  --accent-color: #3b82f6;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+  background: var(--bg-color);
+  overflow-x: hidden;
+  height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab bar */
+.tab-bar {
+  display: flex;
+  background: var(--tab-bg);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 8px;
+  scrollbar-width: none; /* Firefox */
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  min-width: 140px;
+  max-width: 280px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  opacity: 0.7;
+}
+
+.tab:hover {
+  background: rgba(0, 0, 0, 0.02);
+  opacity: 1;
+}
+
+.tab.active {
+  background: var(--tab-active-bg);
+  border-bottom-color: var(--primary-color);
+  opacity: 1;
+}
+
+.tab-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Reader area */
+.reader {
+  flex: 1;
+  padding: 40px 24px;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Markdown body adjustments */
+.markdown-body {
+  background-color: transparent !important;
+  font-family: inherit !important;
+}
+
+.markdown-body pre {
+  border-radius: 12px !important;
+  background-color: #f1f5f9 !important; /* 稍微加深背景色，增加对比度 */
+  border: 1px solid var(--border-color) !important;
+  padding: 16px !important;
+  margin: 1.5em 0 !important;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+}
+
+.markdown-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+  font-size: 0.9em !important;
+}
+
+/* 确保 highlight.js 的颜色不被覆盖 */
+.markdown-body .hljs {
+  background: transparent !important;
+  color: inherit !important; /* 修改为 !important 确保继承 highlight.js 的颜色 */
+  padding: 0 !important;
+}
+
+/* 针对代码块内可能出现的白色/浅色文字进行加固 */
+.markdown-body pre code {
+  color: inherit !important;
+}
+
+/* 暗黑模式适配 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #0f172a;
+    --text-color: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border-color: #1e293b;
+    --tab-bg: #1e293b;
+    --tab-active-bg: #0f172a;
+  }
+  
+  .markdown-body pre {
+    background-color: #1e293b !important;
+  }
+  
+  .empty-state {
+    background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+  }
+  
+  .empty-hint {
+    background: #1e293b;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  }
+  
+  .tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  color: var(--text-muted);
+  gap: 16px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  height: 100vh;
+  color: var(--text-muted);
+  text-align: center;
+  gap: 12px;
+  padding: 20px;
+  background: radial-gradient(circle at center, #f8fafc 0%, #ffffff 100%);
+}
+
+.empty-icon {
+  font-size: 80px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));
+}
+
+.empty-state h2 {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text-color);
+  margin-bottom: 4px;
+  letter-spacing: -0.025em;
+}
+
+.empty-state p {
+  font-size: 16px;
+}
+
+.empty-hint {
+  margin-top: 32px;
+  padding: 24px 32px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  line-height: 2;
+  box-shadow: var(--shadow-md);
+  max-width: 400px;
+}
+
+.empty-hint code {
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--primary-color);
+}
+
+/* Scroll to top button */
+.scroll-top {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 200;
+}
+
+.scroll-top:hover {
+  transform: translateY(-4px);
+  background: var(--primary-hover);
+  box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4);
+}
+
+.scroll-top:active {
+  transform: scale(0.95);
+}

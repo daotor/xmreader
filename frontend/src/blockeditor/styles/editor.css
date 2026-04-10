@@ -1,0 +1,227 @@
+html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; }
+#app { height: 100%; overflow: hidden; }
+
+:root {
+  --be-bg: #ffffff;
+  --be-text: #1a1a1a;
+  --be-text-secondary: #6b7280;
+  --be-border: #e5e7eb;
+  --be-primary: #3b82f6;
+  --be-primary-light: #eff6ff;
+  --be-code-bg: #f3f4f6;
+  --be-code-body-bg: #eaebee;
+  --be-blockquote-border: #d1d5db;
+  --be-hr-color: #e5e7eb;
+  --be-placeholder: #9ca3af;
+  --be-table-border: #d1d5db;
+  --be-radius: 4px;
+  --be-hover-bg: #f3f4f6;
+  --be-active-bg: #e8f0fe;
+  --be-icon: #444;
+  --be-icon-hover: #1a1a1a;
+  --be-toolbar-bg: #e8e8e8;
+}
+
+/* === 深色主题（编辑器本体） === */
+.block-editor.theme-dark {
+  --be-bg: #1e1e1e;
+  --be-text: #e0e0e0;
+  --be-text-secondary: #9ca3af;
+  --be-border: #3a3a3a;
+  --be-primary: #60a5fa;
+  --be-primary-light: #1e3a5f;
+  --be-code-bg: #2a2a2a;
+  --be-code-body-bg: #1e1e1e;
+  --be-blockquote-border: #555;
+  --be-hr-color: #3a3a3a;
+  --be-placeholder: #666;
+  --be-table-border: #444;
+  --be-hover-bg: #333;
+  --be-active-bg: #1e3a5f;
+  --be-icon: #bbb;
+  --be-icon-hover: #e0e0e0;
+  --be-toolbar-bg: #353535;
+}
+
+.block-editor.theme-dark .highlight-block--info {
+  background: #1a2744;
+}
+.block-editor.theme-dark .highlight-block--success {
+  background: #1a3a2a;
+}
+.block-editor.theme-dark .highlight-block--warning {
+  background: #3a2e1a;
+}
+.block-editor.theme-dark .highlight-block--danger {
+  background: #3a1a1a;
+}
+
+/* === 深色主题（body 级：App 外壳 + Teleport 弹出层） === */
+body.be-theme-dark {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  --be-bg: #1e1e1e;
+  --be-text: #e0e0e0;
+  --be-text-secondary: #9ca3af;
+  --be-border: #3a3a3a;
+  --be-primary: #60a5fa;
+  --be-primary-light: #1e3a5f;
+  --be-code-bg: #2a2a2a;
+  --be-hover-bg: #333;
+  --be-active-bg: #1e3a5f;
+  --be-icon: #bbb;
+  --be-icon-hover: #e0e0e0;
+}
+
+/* === 深色主题滚动条 === */
+.block-editor.theme-dark ::-webkit-scrollbar { width: 8px; height: 8px; }
+.block-editor.theme-dark ::-webkit-scrollbar-track { background: transparent; }
+.block-editor.theme-dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+.block-editor.theme-dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+.block-editor.theme-dark { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.15) transparent; }
+
+/* === 编辑器基础 === */
+.block-editor-content { outline: none; font-size: 16px; line-height: 1.75; color: var(--be-text); }
+.block-editor-content p { margin: 0.5em 0; }
+
+/* === 标题 === */
+.block-editor-content h1 { font-size: 2em; font-weight: 700; margin: 1em 0 0.5em; line-height: 1.3; }
+.block-editor-content h2 { font-size: 1.5em; font-weight: 600; margin: 0.8em 0 0.4em; line-height: 1.35; }
+.block-editor-content h3 { font-size: 1.25em; font-weight: 600; margin: 0.6em 0 0.3em; line-height: 1.4; }
+.block-editor-content h4 { font-size: 1.1em; font-weight: 600; margin: 0.5em 0 0.25em; line-height: 1.45; }
+.block-editor-content h5 { font-size: 1em; font-weight: 600; margin: 0.4em 0 0.2em; line-height: 1.5; color: var(--be-text-secondary); }
+
+/* === 列表 === */
+.block-editor-content ul, .block-editor-content ol { padding-left: 1.5em; margin: 0.5em 0; }
+.block-editor-content li { margin: 0.2em 0; }
+.block-editor-content li p { margin: 0; }
+
+/* === 任务列表 === */
+.block-editor-content ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.block-editor-content ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; }
+.block-editor-content ul[data-type="taskList"] li > label { flex-shrink: 0; margin-top: 0.25em; }
+.block-editor-content ul[data-type="taskList"] li > div { flex: 1; }
+
+/* === 引用 === */
+.block-editor-content blockquote { border-left: 3px solid var(--be-blockquote-border); padding-left: 1em; margin: 0.5em 0; color: var(--be-text-secondary); }
+
+/* === 代码 === */
+.block-editor-content pre { background: var(--be-code-bg); border-radius: var(--be-radius); padding: 0.75em 1em; margin: 0.5em 0; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; line-height: 1.6; }
+.block-editor-content pre code { background: none; padding: 0; border-radius: 0; font-size: inherit; color: inherit; }
+.block-editor-content code { background: var(--be-code-bg); border-radius: 3px; padding: 0.15em 0.35em; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.9em; }
+
+/* === 语法高亮（浅色 / GitHub 风格） === */
+.block-editor-content pre .hljs-comment,
+.block-editor-content pre .hljs-quote { color: #6a737d; font-style: italic; }
+.block-editor-content pre .hljs-keyword,
+.block-editor-content pre .hljs-selector-tag { color: #d73a49; }
+.block-editor-content pre .hljs-literal,
+.block-editor-content pre .hljs-built_in { color: #005cc5; }
+.block-editor-content pre .hljs-string,
+.block-editor-content pre .hljs-doctag,
+.block-editor-content pre .hljs-template-variable { color: #032f62; }
+.block-editor-content pre .hljs-number,
+.block-editor-content pre .hljs-meta { color: #005cc5; }
+.block-editor-content pre .hljs-function { color: #6f42c1; }
+.block-editor-content pre .hljs-title,
+.block-editor-content pre .hljs-title.function_ { color: #6f42c1; }
+.block-editor-content pre .hljs-title.class_,
+.block-editor-content pre .hljs-type { color: #6f42c1; }
+.block-editor-content pre .hljs-variable,
+.block-editor-content pre .hljs-template-tag { color: #e36209; }
+.block-editor-content pre .hljs-attr,
+.block-editor-content pre .hljs-attribute { color: #005cc5; }
+.block-editor-content pre .hljs-tag { color: #22863a; }
+.block-editor-content pre .hljs-name { color: #22863a; }
+.block-editor-content pre .hljs-regexp,
+.block-editor-content pre .hljs-link { color: #032f62; }
+.block-editor-content pre .hljs-symbol,
+.block-editor-content pre .hljs-bullet { color: #005cc5; }
+.block-editor-content pre .hljs-params { color: #24292e; }
+.block-editor-content pre .hljs-section { color: #005cc5; font-weight: 700; }
+.block-editor-content pre .hljs-addition { color: #22863a; background: #f0fff4; }
+.block-editor-content pre .hljs-deletion { color: #b31d28; background: #ffeef0; }
+.block-editor-content pre .hljs-emphasis { font-style: italic; }
+.block-editor-content pre .hljs-strong { font-weight: 700; }
+
+/* === 语法高亮（深色 / VS Code Dark+ 风格） === */
+.block-editor.theme-dark .block-editor-content pre .hljs-comment,
+.block-editor.theme-dark .block-editor-content pre .hljs-quote { color: #6a9955; font-style: italic; }
+.block-editor.theme-dark .block-editor-content pre .hljs-keyword,
+.block-editor.theme-dark .block-editor-content pre .hljs-selector-tag { color: #c586c0; }
+.block-editor.theme-dark .block-editor-content pre .hljs-literal,
+.block-editor.theme-dark .block-editor-content pre .hljs-built_in { color: #4ec9b0; }
+.block-editor.theme-dark .block-editor-content pre .hljs-string,
+.block-editor.theme-dark .block-editor-content pre .hljs-doctag,
+.block-editor.theme-dark .block-editor-content pre .hljs-template-variable { color: #ce9178; }
+.block-editor.theme-dark .block-editor-content pre .hljs-number,
+.block-editor.theme-dark .block-editor-content pre .hljs-meta { color: #b5cea8; }
+.block-editor.theme-dark .block-editor-content pre .hljs-function { color: #dcdcaa; }
+.block-editor.theme-dark .block-editor-content pre .hljs-title,
+.block-editor.theme-dark .block-editor-content pre .hljs-title.function_ { color: #dcdcaa; }
+.block-editor.theme-dark .block-editor-content pre .hljs-title.class_,
+.block-editor.theme-dark .block-editor-content pre .hljs-type { color: #4ec9b0; }
+.block-editor.theme-dark .block-editor-content pre .hljs-variable,
+.block-editor.theme-dark .block-editor-content pre .hljs-template-tag { color: #9cdcfe; }
+.block-editor.theme-dark .block-editor-content pre .hljs-attr,
+.block-editor.theme-dark .block-editor-content pre .hljs-attribute { color: #9cdcfe; }
+.block-editor.theme-dark .block-editor-content pre .hljs-tag { color: #569cd6; }
+.block-editor.theme-dark .block-editor-content pre .hljs-name { color: #569cd6; }
+.block-editor.theme-dark .block-editor-content pre .hljs-regexp,
+.block-editor.theme-dark .block-editor-content pre .hljs-link { color: #d16969; }
+.block-editor.theme-dark .block-editor-content pre .hljs-symbol,
+.block-editor.theme-dark .block-editor-content pre .hljs-bullet { color: #569cd6; }
+.block-editor.theme-dark .block-editor-content pre .hljs-params { color: #d4d4d4; }
+.block-editor.theme-dark .block-editor-content pre .hljs-section { color: #569cd6; font-weight: 700; }
+.block-editor.theme-dark .block-editor-content pre .hljs-addition { color: #b5cea8; background: rgba(155,185,85,0.1); }
+.block-editor.theme-dark .block-editor-content pre .hljs-deletion { color: #ce9178; background: rgba(206,145,120,0.1); }
+.block-editor.theme-dark .block-editor-content pre .hljs-emphasis { font-style: italic; }
+.block-editor.theme-dark .block-editor-content pre .hljs-strong { font-weight: 700; }
+
+/* === 分割线 / 链接 === */
+.block-editor-content hr { border: none; border-top: 1px solid var(--be-hr-color); margin: 1.5em 0; }
+.block-editor-content a { color: var(--be-primary); text-decoration: underline; cursor: pointer; }
+
+/* === 表格 === */
+.block-editor-content table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+.block-editor-content th, .block-editor-content td { border: 1px solid var(--be-table-border); padding: 0.5em 0.75em; text-align: left; }
+.block-editor-content th { background: var(--be-code-bg); font-weight: 600; }
+
+/* === 图片 === */
+.block-editor-content img { max-width: 100%; height: auto; border-radius: var(--be-radius); margin: 0.5em 0; cursor: default; }
+.block-editor-content img.ProseMirror-selectednode { outline: 2px solid var(--be-primary); border-radius: var(--be-radius); }
+
+/* === 高亮块 === */
+.highlight-block {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin: 0.5em 0;
+  border-left: 4px solid;
+}
+.highlight-block--info {
+  background: #eff6ff;
+  border-left-color: #3b82f6;
+}
+.highlight-block--success {
+  background: #f0fdf4;
+  border-left-color: #22c55e;
+}
+.highlight-block--warning {
+  background: #fffbeb;
+  border-left-color: #f59e0b;
+}
+.highlight-block--danger {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+.highlight-block p { margin: 0.25em 0; }
+
+/* === 占位符 === */
+.block-editor-content p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; color: var(--be-placeholder); pointer-events: none; height: 0; }
+.block-editor-content .is-empty::before { content: attr(data-placeholder); float: left; color: var(--be-placeholder); pointer-events: none; height: 0; }
+
+/* === 内联格式 === */
+.block-editor-content strong { font-weight: 700; }
+.block-editor-content em { font-style: italic; }
+.block-editor-content u { text-decoration: underline; }
+.block-editor-content s { text-decoration: line-through; }

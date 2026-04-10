@@ -1,0 +1,5 @@
+export { getExtensions } from './starter-kit'
+export type { StarterKitOptions } from './starter-kit'
+export { SlashCommand, executeMenuCommand, filterMenuItems } from './plugins/slash-command'
+export { HighlightBlock } from './nodes/highlight-block'
+export { FontSize } from './marks/font-size'
