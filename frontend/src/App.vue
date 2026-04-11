@@ -2,13 +2,8 @@
   <div class="app">
     <!-- Tab bar for multiple files -->
     <div v-if="files.length > 1" class="tab-bar">
-      <div
-        v-for="(file, idx) in files"
-        :key="file.path"
-        class="tab"
-        :class="{ active: currentIndex === idx }"
-        @click="currentIndex = idx"
-      >
+      <div v-for="(file, idx) in files" :key="file.path" class="tab" :class="{ active: currentIndex === idx }"
+        @click="currentIndex = idx">
         <span class="tab-title">{{ file.title }}</span>
         <span class="tab-path" :title="file.path">{{ truncatePath(file.path) }}</span>
       </div>
@@ -27,9 +22,9 @@
       <p>Markdown 阅读器</p>
       <p class="empty-hint">
         使用方式：<br>
-        双击 <code>.md</code> / <code>.mdc</code> / <code>.go</code> 文件即可打开<br>
+        双击 <code>.md</code> / <code>.mdc</code> / <code>.go</code> / <code>.bat</code> / <code>.ps1</code> 文件即可打开<br>
         或命令行：<code>xmreader.exe file.md</code><br>
-        也可直接拖放 Markdown / 源码 / 图片文件到窗口打开
+        也可直接拖放 Markdown / 源码 / Win脚本 / 图片文件到窗口打开
       </p>
     </div>
 
@@ -40,31 +35,14 @@
     </div>
 
     <!-- Markdown content -->
-    <div
-      v-if="currentFile && !loading"
-      ref="readerContainer"
-      class="reader"
-      @click.capture="handleReaderLinkClick"
-      @scroll="handleReaderScroll"
-    >
-      <BlockEditor
-        :key="currentFile.path"
-        :content="currentFile.content"
-        content-format="markdown"
-        :document-url="currentFile.path"
-        :editable="false"
-        :reader-mode="true"
-        :open-links-on-click="false"
-      />
+    <div v-if="currentFile && !loading" ref="readerContainer" class="reader" @click.capture="handleReaderLinkClick"
+      @scroll="handleReaderScroll">
+      <BlockEditor :key="currentFile.path" :content="currentFile.content" content-format="markdown"
+        :document-url="currentFile.path" :editable="false" :reader-mode="true" :open-links-on-click="false" />
     </div>
 
     <!-- Scroll to top button -->
-    <button
-      v-if="showScrollTop"
-      class="scroll-top"
-      @click="scrollToTop"
-      title="回到顶部"
-    >↑</button>
+    <button v-if="showScrollTop" class="scroll-top" @click="scrollToTop" title="回到顶部">↑</button>
 
     <Transition name="drop-overlay">
       <div v-if="isDragActive" class="drop-overlay">
@@ -82,7 +60,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import BlockEditor from './blockeditor/components/BlockEditor.vue'
 import { filePathToFileUrl, resolveDocumentLinkPath } from './blockeditor/utils/markdown-parser'
 import { GetFiles, ReadFile } from '../wailsjs/go/main/App'
-import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime'
+import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff, WindowSetTitle } from '../wailsjs/runtime/runtime'
 
 interface FileInfo {
   path: string
@@ -142,6 +120,15 @@ function escapeMarkdownAlt(text: string): string {
 
 function buildImageMarkdown(filePath: string, title: string): string {
   return `![${escapeMarkdownAlt(title)}](<${filePathToFileUrl(filePath)}>)`
+}
+
+function syncWindowTitle(file: FileInfo | null) {
+  const nextTitle = file?.path || 'XMReader'
+  document.title = nextTitle
+
+  if ((window as any).runtime?.WindowSetTitle) {
+    WindowSetTitle(nextTitle)
+  }
 }
 
 function isExternalLinkHref(href: string): boolean {
@@ -389,7 +376,6 @@ function loadFiles() {
         console.log('[XMReader] 收到文件:', data)
         if (data && data.length > 0) {
           files.value = data
-          document.title = `${data[0].title} - XMReader`
         }
         loading.value = false
       })
@@ -444,7 +430,7 @@ watch(currentIndex, () => {
 })
 
 watch(currentFile, (file) => {
-  document.title = file ? `${file.title} - XMReader` : 'XMReader'
+  syncWindowTitle(file)
   nextTick(() => {
     readerContainer.value?.scrollTo({ top: 0 })
     showScrollTop.value = false

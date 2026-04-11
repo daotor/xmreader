@@ -24,7 +24,8 @@ XMReader is a lightweight, cross-platform Markdown reader built with Go, Wails, 
 
 - Multi-tab reading for multiple files
 - Markdown and GitHub Flavored Markdown rendering
-- Source and config file reading through fenced code block rendering, including `.go`, `.py`, `.js`, `.ts`, `.tsx`, `.java`, `.rs`, `.c`, `.cpp`, `.cs`, `.kt`, `.swift`, `.php`, `.rb`, `.sh`, `.ps1`, `.json`, `.yaml`, `.toml`, `.xml`, `.html`, `.css`, `.scss`, `.sql`, and more
+- Source and config file reading through fenced code block rendering, including `.go`, `.py`, `.js`, `.ts`, `.tsx`, `.java`, `.rs`, `.c`, `.cpp`, `.cs`, `.kt`, `.swift`, `.php`, `.rb`, `.sh`, `.bat`, `.cmd`, `.ps1`, `.psm1`, `.psd1`, `.json`, `.yaml`, `.toml`, `.xml`, `.html`, `.css`, `.scss`, `.sql`, and more
+- Vue SFC files such as `.vue` are rendered as structured Markdown sections (`template` / `script` / `style`)
 - Mermaid diagram rendering
 - Local image and relative-path image resolution
 - Drag-and-drop file opening
@@ -116,6 +117,10 @@ xmreader.exe main.go
 REM Open other supported source/config files
 xmreader.exe script.py
 xmreader.exe config.json
+
+REM Open Windows script files
+xmreader.exe build.bat
+xmreader.exe build.ps1
 
 REM Open multiple files
 xmreader.exe file1.md file2.mdc

@@ -42,7 +42,11 @@ func TestRenderAdditionalLanguageMappings(t *testing.T) {
 		{path: "component.tsx", expectedPrefix: "```tsx\n"},
 		{path: "config.json", expectedPrefix: "```json\n"},
 		{path: "docker-compose.yaml", expectedPrefix: "```yaml\n"},
+		{path: "build.bat", expectedPrefix: "```bat\n"},
+		{path: "run.cmd", expectedPrefix: "```bat\n"},
 		{path: "build.ps1", expectedPrefix: "```powershell\n"},
+		{path: "module.psm1", expectedPrefix: "```powershell\n"},
+		{path: "manifest.psd1", expectedPrefix: "```powershell\n"},
 		{path: "main.rs", expectedPrefix: "```rust\n"},
 		{path: "Dockerfile", expectedPrefix: "```dockerfile\n"},
 		{path: "Makefile", expectedPrefix: "```makefile\n"},
@@ -62,6 +66,52 @@ func TestRenderAdditionalLanguageMappings(t *testing.T) {
 				t.Fatalf("expected prefix %q, got %q", test.expectedPrefix, content)
 			}
 		})
+	}
+}
+
+func TestRenderVueAsStructuredMarkdown(t *testing.T) {
+	raw := `<template>
+  <div class="app">Hello</div>
+</template>
+
+<script setup lang="ts">
+const title = 'hello'
+</script>
+
+<style scoped lang="scss">
+.app { color: red; }
+</style>
+`
+
+	content, err := Render("App.vue", raw)
+	if err != nil {
+		t.Fatalf("Render returned unexpected error: %v", err)
+	}
+
+	expectedSnippets := []string{
+		"## template",
+		"```html\n<template>",
+		"## script",
+		"```ts\n<script setup lang=\"ts\">",
+		"## style",
+		"```scss\n<style scoped lang=\"scss\">",
+	}
+
+	for _, snippet := range expectedSnippets {
+		if !strings.Contains(content, snippet) {
+			t.Fatalf("expected structured content to contain %q, got %q", snippet, content)
+		}
+	}
+}
+
+func TestRenderVueFallsBackToSingleCodeFence(t *testing.T) {
+	content, err := Render("snippet.vue", "<div>hello</div>")
+	if err != nil {
+		t.Fatalf("Render returned unexpected error: %v", err)
+	}
+
+	if !strings.HasPrefix(content, "```vue\n") {
+		t.Fatalf("expected vue fallback fence, got %q", content)
 	}
 }
 
@@ -99,6 +149,18 @@ func TestSupports(t *testing.T) {
 
 	if !Supports("script.py") {
 		t.Fatal("expected .py to be supported")
+	}
+
+	if !Supports("build.bat") {
+		t.Fatal("expected .bat to be supported")
+	}
+
+	if !Supports("run.cmd") {
+		t.Fatal("expected .cmd to be supported")
+	}
+
+	if !Supports("build.ps1") {
+		t.Fatal("expected .ps1 to be supported")
 	}
 
 	if Supports("archive.zip") {
