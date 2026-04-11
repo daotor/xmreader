@@ -187,7 +187,7 @@ fi
 
 echo ""
 echo "[2/4] Building Ubuntu/Linux binary..."
-"$SCRIPT_DIR/build-ubuntu.sh"
+bash "$SCRIPT_DIR/build-ubuntu.sh"
 echo "  Done"
 
 echo ""

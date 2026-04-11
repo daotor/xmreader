@@ -3,7 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -261,6 +265,7 @@ jobs:
       contents: write
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
@@ -295,5 +300,5 @@ jobs:
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
           else
-            gh release create "${RELEASE_TAG}" "${assets[@]}" --verify-tag --generate-notes
+            gh release create "${RELEASE_TAG}" "${assets[@]}" --title "${RELEASE_TAG}" --verify-tag --generate-notes
           fi
