@@ -10,6 +10,16 @@ XMReader 是一个轻量、跨平台的 Markdown 阅读器，基于 Go、Wails �
 - 支持多标签页、拖放打开、Mermaid 流程图、本地图片解析，以及 `.md` / `.mdc` 文件
 - Windows 平台内置 WebView2 运行时检测、自动安装尝试和启动日志，便于分发与排障
 
+## 界面预览
+
+### Windows
+
+![XMReader Windows 界面](./docs/images/2026-04-11_13-18.png)
+
+### macOS
+
+![XMReader macOS 界面](./docs/images/macos_2026-04-11_13-20-32.jpg)
+
 ## 功能
 
 - 多文件标签页阅读

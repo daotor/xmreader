@@ -10,6 +10,16 @@ XMReader is a lightweight, cross-platform Markdown reader built with Go, Wails, 
 - Supports multi-tab reading, drag-and-drop opening, Mermaid diagrams, local image resolution, and both `.md` and `.mdc` files
 - Includes WebView2 runtime detection, automatic installation fallback, and startup logs on Windows
 
+## Screenshots
+
+### Windows
+
+![XMReader on Windows](./docs/images/2026-04-11_13-18.png)
+
+### macOS
+
+![XMReader on macOS](./docs/images/macos_2026-04-11_13-20-32.jpg)
+
 ## Features
 
 - Multi-tab reading for multiple files
