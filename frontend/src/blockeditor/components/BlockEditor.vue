@@ -43,6 +43,7 @@ const { editor } = useBlockEditor({
   editable: isInteractive.value,
   placeholder: props.placeholder,
   documentUrl: props.documentUrl,
+  openLinksOnClick: props.openLinksOnClick,
   onUpdate: (json) => emit("update:content", JSON.stringify(json)),
   onSave: (json) => emit("save", JSON.stringify(json)),
   slashSuggestion: {

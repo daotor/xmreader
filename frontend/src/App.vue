@@ -40,7 +40,13 @@
     </div>
 
     <!-- Markdown content -->
-    <div v-if="currentFile && !loading" ref="readerContainer" class="reader" @scroll="handleReaderScroll">
+    <div
+      v-if="currentFile && !loading"
+      ref="readerContainer"
+      class="reader"
+      @click.capture="handleReaderLinkClick"
+      @scroll="handleReaderScroll"
+    >
       <BlockEditor
         :key="currentFile.path"
         :content="currentFile.content"
@@ -48,6 +54,7 @@
         :document-url="currentFile.path"
         :editable="false"
         :reader-mode="true"
+        :open-links-on-click="false"
       />
     </div>
 
@@ -73,9 +80,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import BlockEditor from './blockeditor/components/BlockEditor.vue'
-import { filePathToFileUrl } from './blockeditor/utils/markdown-parser'
+import { filePathToFileUrl, resolveDocumentLinkPath } from './blockeditor/utils/markdown-parser'
 import { GetFiles, ReadFile } from '../wailsjs/go/main/App'
-import { EventsOn, OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime'
+import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime'
 
 interface FileInfo {
   path: string
@@ -140,6 +147,44 @@ function escapeMarkdownAlt(text: string): string {
 
 function buildImageMarkdown(filePath: string, title: string): string {
   return `![${escapeMarkdownAlt(title)}](<${filePathToFileUrl(filePath)}>)`
+}
+
+function isExternalLinkHref(href: string): boolean {
+  return /^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/\/)/.test(href) && !href.toLowerCase().startsWith('file://')
+}
+
+function handleReaderLinkClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  const anchor = target?.closest('a[href]') as HTMLAnchorElement | null
+  if (!anchor) return
+
+  const rawHref = anchor.getAttribute('href')?.trim()
+  if (!rawHref || rawHref.startsWith('#')) {
+    return
+  }
+
+  const currentPath = currentFile.value?.path
+  const resolvedLocalPath = resolveDocumentLinkPath(rawHref, currentPath)
+
+  if (resolvedLocalPath && isMarkdownFile(resolvedLocalPath)) {
+    event.preventDefault()
+    event.stopPropagation()
+    void openPaths([resolvedLocalPath], 'append')
+    return
+  }
+
+  if (isExternalLinkHref(rawHref)) {
+    event.preventDefault()
+    event.stopPropagation()
+    BrowserOpenURL(rawHref)
+    return
+  }
+
+  if (resolvedLocalPath) {
+    event.preventDefault()
+    event.stopPropagation()
+    showDropNotice('error', '当前仅支持在 XMReader 内打开 Markdown 链接')
+  }
 }
 
 function showDropNotice(type: DropNotice['type'], message: string) {

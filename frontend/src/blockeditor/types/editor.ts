@@ -9,6 +9,7 @@ export interface BlockEditorProps {
   placeholder?: string
   documentUrl?: string
   readerMode?: boolean
+  openLinksOnClick?: boolean
 }
 
 export interface BlockEditorEmits {
@@ -33,6 +34,7 @@ export interface BlockEditorOptions {
   editable?: boolean
   placeholder?: string
   documentUrl?: string
+  openLinksOnClick?: boolean
   onUpdate?: (json: object) => void
   onSave?: (json: object) => void
 }

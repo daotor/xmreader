@@ -100,7 +100,7 @@ function filePathToLocalAssetUrl(path: string): string {
   return `${LOCAL_FILE_ROUTE_PREFIX}${encodePathForLocalAssetRoute(path)}`
 }
 
-function fileUrlToFilePath(fileUrl: string): string {
+export function fileUrlToFilePath(fileUrl: string): string {
   try {
     const parsedUrl = new URL(fileUrl)
     if (parsedUrl.protocol !== 'file:') {
@@ -120,6 +120,48 @@ function fileUrlToFilePath(fileUrl: string): string {
   } catch (error) {
     console.warn('[MarkdownParser] failed to parse file url:', fileUrl, error)
     return fileUrl
+  }
+}
+
+function stripLinkSearchAndHash(url: string): string {
+  return url.split('#', 1)[0].split('?', 1)[0]
+}
+
+export function resolveDocumentLinkPath(url: string, documentUrl?: string): string | null {
+  if (!url) {
+    return null
+  }
+
+  const cleanedUrl = stripLinkSearchAndHash(url.trim())
+  if (!cleanedUrl) {
+    return null
+  }
+
+  if (cleanedUrl.startsWith(LOCAL_FILE_ROUTE_PREFIX)) {
+    return null
+  }
+
+  if (cleanedUrl.startsWith('file://')) {
+    return fileUrlToFilePath(cleanedUrl)
+  }
+
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(cleanedUrl) || cleanedUrl.startsWith('//')) {
+    return null
+  }
+
+  if (isWindowsDrivePath(cleanedUrl) || cleanedUrl.startsWith('/') || cleanedUrl.startsWith('\\\\')) {
+    return cleanedUrl
+  }
+
+  if (!documentUrl) {
+    return cleanedUrl
+  }
+
+  try {
+    return fileUrlToFilePath(new URL(cleanedUrl.replace(/\\/g, '/'), toBaseUrl(documentUrl)).href)
+  } catch (error) {
+    console.warn('[MarkdownParser] failed to resolve document link:', url, error)
+    return cleanedUrl
   }
 }
 
@@ -206,6 +248,15 @@ export function markdownToHtml(md: string, options: MarkdownToHtmlOptions = {}):
     const resolvedHref = resolveAssetUrl(href, options.documentUrl)
     const titleAttr = title ? ` title="${escapeHtmlAttr(title)}"` : ''
     return `<img src="${escapeHtmlAttr(resolvedHref)}" alt="${escapeHtmlAttr(text)}"${titleAttr}>`
+  }
+
+  renderer.link = function (...args: any[]) {
+    const link = args[0]
+    const href = typeof link === 'string' ? link : link?.href || ''
+    const title = (typeof link === 'object' ? link?.title : args[1]) || ''
+    const text = (typeof link === 'object' ? link?.text : args[2]) || ''
+    const titleAttr = title ? ` title="${escapeHtmlAttr(title)}"` : ''
+    return `<a href="${escapeHtmlAttr(href)}"${titleAttr}>${text}</a>`
   }
 
   // 使用 marked 解析为 HTML（启用 GFM）

@@ -32,7 +32,7 @@ export function useBlockEditor(options: UseBlockEditorOptions) {
 		extensions: getExtensions({
 			placeholder: options.placeholder,
 			slashSuggestion: options.slashSuggestion,
-			openLinksOnClick: !(options.editable ?? true),
+			openLinksOnClick: options.openLinksOnClick ?? !(options.editable ?? true),
 		}),
 		content: resolveBlockEditorContent(options),
 		editable: options.editable ?? true,
