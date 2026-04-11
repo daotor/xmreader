@@ -24,6 +24,7 @@ XMReader is a lightweight, cross-platform Markdown reader built with Go, Wails, 
 
 - Multi-tab reading for multiple files
 - Markdown and GitHub Flavored Markdown rendering
+- Source and config file reading through fenced code block rendering, including `.go`, `.py`, `.js`, `.ts`, `.tsx`, `.java`, `.rs`, `.c`, `.cpp`, `.cs`, `.kt`, `.swift`, `.php`, `.rb`, `.sh`, `.ps1`, `.json`, `.yaml`, `.toml`, `.xml`, `.html`, `.css`, `.scss`, `.sql`, and more
 - Mermaid diagram rendering
 - Local image and relative-path image resolution
 - Drag-and-drop file opening
@@ -108,6 +109,13 @@ For Windows releases, prefer `wails build` instead of plain `go build`.
 ```cmd
 REM Open one file
 xmreader.exe file.md
+
+REM Open a Go source file
+xmreader.exe main.go
+
+REM Open other supported source/config files
+xmreader.exe script.py
+xmreader.exe config.json
 
 REM Open multiple files
 xmreader.exe file1.md file2.mdc

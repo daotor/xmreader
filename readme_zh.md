@@ -24,6 +24,7 @@ XMReader 是一个轻量、跨平台的 Markdown 阅读器，基于 Go、Wails �
 
 - 多文件标签页阅读
 - Markdown / GFM 渲染
+- 源码与常见配置文件可按 fenced code block 渲染，已支持 `.go`、`.py`、`.js`、`.ts`、`.tsx`、`.java`、`.rs`、`.c`、`.cpp`、`.cs`、`.kt`、`.swift`、`.php`、`.rb`、`.sh`、`.ps1`、`.json`、`.yaml`、`.toml`、`.xml`、`.html`、`.css`、`.scss`、`.sql` 等类型
 - Mermaid 图表支持
 - 本地图片与相对路径解析
 - 文件拖放打开
@@ -108,6 +109,13 @@ Windows 正式分发请优先使用 `wails build`，不要使用裸 `go build`�
 ```cmd
 REM 打开单个文件
 xmreader.exe file.md
+
+REM 打开 Go 源码文件
+xmreader.exe main.go
+
+REM 打开其他已支持的源码/配置文件
+xmreader.exe script.py
+xmreader.exe config.json
 
 REM 打开多个文件
 xmreader.exe file1.md file2.mdc

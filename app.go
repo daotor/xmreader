@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/daotor/xmreader/internal/fileview"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -121,12 +122,17 @@ func createFileInfo(path string) (FileInfo, error) {
 		return FileInfo{}, fmt.Errorf("无法读取文件: %w", err)
 	}
 
+	content, err := fileview.Render(path, string(data))
+	if err != nil {
+		return FileInfo{}, err
+	}
+
 	base := filepath.Base(path)
 	title := strings.TrimSuffix(base, filepath.Ext(base))
 	return FileInfo{
 		Path:    path,
 		Title:   title,
-		Content: string(data),
+		Content: content,
 	}, nil
 }
 
@@ -280,13 +286,13 @@ func (a *App) GetFilePaths() []string {
 	return result
 }
 
-// ReadFile reads a markdown file and returns its content
+// ReadFile reads a supported document file and returns renderable markdown content
 func (a *App) ReadFile(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", fmt.Errorf("无法读取文件: %w", err)
 	}
-	return string(data), nil
+	return fileview.Render(path, string(data))
 }
 
 // GetFileTitle returns a clean title from a file path

@@ -27,9 +27,9 @@
       <p>Markdown 阅读器</p>
       <p class="empty-hint">
         使用方式：<br>
-        双击 <code>.md</code> / <code>.mdc</code> 文件即可打开<br>
+        双击 <code>.md</code> / <code>.mdc</code> / <code>.go</code> 文件即可打开<br>
         或命令行：<code>xmreader.exe file.md</code><br>
-        也可直接拖放 <code>.md</code> / <code>.mdc</code> / 图片文件到窗口打开
+        也可直接拖放 Markdown / 源码 / 图片文件到窗口打开
       </p>
     </div>
 
@@ -95,7 +95,6 @@ interface DropNotice {
   message: string
 }
 
-const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdc', '.markdown', '.mdown', '.mkd', '.mkdn'])
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
 const FILE_OPENED_EVENT = 'xmreader:file-opened'
 
@@ -133,10 +132,6 @@ function getFileExtension(filePath: string): string {
   return extIndex >= 0 ? fileName.slice(extIndex) : ''
 }
 
-function isMarkdownFile(filePath: string): boolean {
-  return MARKDOWN_EXTENSIONS.has(getFileExtension(filePath))
-}
-
 function isImageFile(filePath: string): boolean {
   return IMAGE_EXTENSIONS.has(getFileExtension(filePath))
 }
@@ -166,7 +161,7 @@ function handleReaderLinkClick(event: MouseEvent) {
   const currentPath = currentFile.value?.path
   const resolvedLocalPath = resolveDocumentLinkPath(rawHref, currentPath)
 
-  if (resolvedLocalPath && isMarkdownFile(resolvedLocalPath)) {
+  if (resolvedLocalPath && /\.(md|mdc|markdown|mdown|mkd|mkdn)$/i.test(resolvedLocalPath)) {
     event.preventDefault()
     event.stopPropagation()
     void openPaths([resolvedLocalPath], 'append')
@@ -225,7 +220,7 @@ function setupSystemThemeSync() {
 async function createFileInfoFromPath(filePath: string): Promise<FileInfo | null> {
   const title = getFileTitle(filePath)
 
-  if (isMarkdownFile(filePath)) {
+  if (!isImageFile(filePath)) {
     const content = await ReadFile(filePath)
     return { path: filePath, title, content }
   }
@@ -272,31 +267,34 @@ function applyOpenedFiles(nextFiles: FileInfo[], mode: 'replace' | 'append') {
 
 async function openPaths(paths: string[], mode: 'replace' | 'append') {
   const uniquePaths = Array.from(new Set(paths.map((path) => path.trim()).filter(Boolean)))
-  const supportedPaths = uniquePaths.filter((path) => isMarkdownFile(path) || isImageFile(path))
-  const unsupportedCount = uniquePaths.length - supportedPaths.length
-
-  if (supportedPaths.length === 0) {
-    showDropNotice('error', '仅支持打开 Markdown 或图片文件')
-    return
-  }
 
   loading.value = true
   try {
-    const results = await Promise.allSettled(supportedPaths.map((path) => createFileInfoFromPath(path)))
+    const results = await Promise.allSettled(uniquePaths.map((path) => createFileInfoFromPath(path)))
     const nextFiles: FileInfo[] = []
     let failedCount = 0
+    let unsupportedCount = 0
 
     for (const result of results) {
       if (result.status === 'fulfilled' && result.value) {
         nextFiles.push(result.value)
       } else if (result.status === 'rejected') {
-        failedCount++
+        const message = String(result.reason ?? '')
+        if (message.includes('暂不支持打开此类型文件')) {
+          unsupportedCount++
+        } else {
+          failedCount++
+        }
         console.error('[XMReader] 打开拖放文件失败:', result.reason)
       }
     }
 
     if (nextFiles.length === 0) {
-      showDropNotice('error', '文件打开失败')
+      if (unsupportedCount > 0 && failedCount === 0) {
+        showDropNotice('error', '当前仅支持打开 Markdown、图片和已接入的源码文件')
+      } else {
+        showDropNotice('error', '文件打开失败')
+      }
       return
     }
 
