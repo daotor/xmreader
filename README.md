@@ -35,6 +35,12 @@ kmread.exe file.md
 # 打开多个文件
 kmread.exe file1.md file2.mdc
 
+# 默认复用已打开窗口，把文件追加成标签
+kmread.exe file3.md
+
+# 显式新建窗口
+kmread.exe --new-window file4.md
+
 # 注册 .md / .mdc 文件关联（双击即用）
 kmread.exe --register
 ```
@@ -66,6 +72,38 @@ open -a KMRead test.md
 
 # 打开 AI Agent rules 文件
 open -a KMRead rules.mdc
+```
+
+### Ubuntu
+
+```bash
+# Ubuntu 22.04 and earlier
+sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
+
+# Ubuntu 24.04 and newer
+sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+
+# 一键构建本机架构产物，并额外打包 tar.gz
+./build-ubuntu.sh
+
+# 直接运行
+./build/bin/kmread test.md
+
+# 解压分发包（文件名会按本机架构生成，例如 amd64 / arm64）
+tar -xzf build/bin/kmread-linux-<arch>.tar.gz
+```
+
+### Debian Package
+
+```bash
+# 先确保 Ubuntu/Linux 构建依赖已安装
+sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev dpkg-dev
+
+# 一键生成 .deb 安装包
+./build-debian-package.sh
+
+# 安装
+sudo apt install ./build/bin/kmread_<version>_<arch>.deb
 ```
 
 ## 技术栈

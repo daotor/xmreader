@@ -320,8 +320,14 @@ function registerFileOpenEvent() {
     return
   }
 
-  removeFileOpenListener = EventsOn(FILE_OPENED_EVENT, (filePath: string) => {
-    void openPaths([filePath], 'append')
+  removeFileOpenListener = EventsOn(FILE_OPENED_EVENT, (...data: unknown[]) => {
+    const incomingPaths = data.length === 1 && Array.isArray(data[0])
+      ? data[0].filter((item): item is string => typeof item === 'string')
+      : data.filter((item): item is string => typeof item === 'string')
+
+    if (incomingPaths.length > 0) {
+      void openPaths(incomingPaths, 'append')
+    }
   })
 }
 

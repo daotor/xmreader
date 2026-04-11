@@ -2,17 +2,23 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const fileOpenedEvent = "kmread:file-opened"
+const primaryInstanceChannelID = "kmread-main-window"
 
 // App struct
 type App struct {
@@ -22,12 +28,81 @@ type App struct {
 	files     []FileInfo // cached file data
 }
 
+func primaryInstanceAddress() string {
+	hasher := fnv.New32a()
+	_, _ = hasher.Write([]byte(primaryInstanceChannelID))
+	port := 41000 + int(hasher.Sum32()%10000)
+	return fmt.Sprintf("127.0.0.1:%d", port)
+}
+
+func tryForwardToPrimaryInstance(args []string) (bool, error) {
+	connection, err := net.DialTimeout("tcp", primaryInstanceAddress(), 300*time.Millisecond)
+	if err != nil {
+		return false, err
+	}
+	defer connection.Close()
+
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return false, err
+	}
+
+	payload := options.SecondInstanceData{
+		Args:             args,
+		WorkingDirectory: workingDirectory,
+	}
+
+	if err := json.NewEncoder(connection).Encode(payload); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func startPrimaryInstanceServer(app *App) (net.Listener, error) {
+	listener, err := net.Listen("tcp", primaryInstanceAddress())
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		for {
+			connection, err := listener.Accept()
+			if err != nil {
+				if errorsIsClosed(err) {
+					return
+				}
+				log.Printf("[KMRead] 主窗口监听失败: %v\n", err)
+				continue
+			}
+
+			go func(conn net.Conn) {
+				defer conn.Close()
+
+				var payload options.SecondInstanceData
+				if err := json.NewDecoder(conn).Decode(&payload); err != nil {
+					log.Printf("[KMRead] 解析第二实例消息失败: %v\n", err)
+					return
+				}
+
+				app.handleSecondInstanceLaunch(payload)
+			}(connection)
+		}
+	}()
+
+	return listener, nil
+}
+
+func errorsIsClosed(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "closed network connection")
+}
+
 // NewApp creates a new App application struct
 func NewApp(filePaths []string) *App {
 	a := &App{}
 
 	for _, path := range filePaths {
-		if _, _, err := a.registerOpenedFile(path); err != nil {
+		if _, _, err := a.registerOpenedFile(path, ""); err != nil {
 			log.Printf("[KMRead] 初始化文件失败: %s: %v\n", path, err)
 		}
 	}
@@ -55,8 +130,13 @@ func createFileInfo(path string) (FileInfo, error) {
 	}, nil
 }
 
-func normalizeExistingFilePath(path string) (string, error) {
-	absPath, err := filepath.Abs(path)
+func normalizeExistingFilePath(path string, workingDirectory string) (string, error) {
+	candidatePath := path
+	if !filepath.IsAbs(candidatePath) && workingDirectory != "" {
+		candidatePath = filepath.Join(workingDirectory, candidatePath)
+	}
+
+	absPath, err := filepath.Abs(candidatePath)
 	if err != nil {
 		return "", err
 	}
@@ -72,8 +152,8 @@ func normalizeExistingFilePath(path string) (string, error) {
 	return absPath, nil
 }
 
-func (a *App) registerOpenedFile(path string) (FileInfo, bool, error) {
-	normalizedPath, err := normalizeExistingFilePath(path)
+func (a *App) registerOpenedFile(path string, workingDirectory string) (FileInfo, bool, error) {
+	normalizedPath, err := normalizeExistingFilePath(path, workingDirectory)
 	if err != nil {
 		return FileInfo{}, false, err
 	}
@@ -98,15 +178,85 @@ func (a *App) registerOpenedFile(path string) (FileInfo, bool, error) {
 	return fileInfo, true, nil
 }
 
-func (a *App) handleMacFileOpen(path string) {
-	fileInfo, _, err := a.registerOpenedFile(path)
-	if err != nil {
-		log.Printf("[KMRead] macOS 打开文件失败: %s: %v\n", path, err)
-		return
+func collectExistingFilePaths(args []string, workingDirectory string) []string {
+	uniquePaths := make(map[string]struct{})
+	result := make([]string, 0, len(args))
+
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+
+		normalizedPath, err := normalizeExistingFilePath(arg, workingDirectory)
+		if err != nil {
+			continue
+		}
+
+		if _, exists := uniquePaths[normalizedPath]; exists {
+			continue
+		}
+
+		uniquePaths[normalizedPath] = struct{}{}
+		result = append(result, normalizedPath)
 	}
 
+	return result
+}
+
+func (a *App) focusWindow() {
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, fileOpenedEvent, fileInfo.Path)
+		runtime.WindowShow(a.ctx)
+		runtime.WindowUnminimise(a.ctx)
+	}
+}
+
+func (a *App) emitOpenedFiles(paths []string) {
+	if a.ctx != nil && len(paths) > 0 {
+		runtime.EventsEmit(a.ctx, fileOpenedEvent, paths)
+	}
+}
+
+func (a *App) appendFiles(paths []string, workingDirectory string, source string) {
+	openedPaths := make([]string, 0, len(paths))
+
+	for _, path := range paths {
+		fileInfo, _, err := a.registerOpenedFile(path, workingDirectory)
+		if err != nil {
+			log.Printf("[KMRead] %s 打开文件失败: %s: %v\n", source, path, err)
+			continue
+		}
+		openedPaths = append(openedPaths, fileInfo.Path)
+	}
+
+	a.focusWindow()
+	a.emitOpenedFiles(openedPaths)
+}
+
+func (a *App) handleMacFileOpen(path string) {
+	a.appendFiles([]string{path}, "", "macOS")
+}
+
+func (a *App) handleSecondInstanceLaunch(secondInstanceData options.SecondInstanceData) {
+	paths := collectExistingFilePaths(secondInstanceData.Args, secondInstanceData.WorkingDirectory)
+	a.appendFiles(paths, secondInstanceData.WorkingDirectory, "第二实例")
+}
+
+func (a *App) HasFiles() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return len(a.files) > 0
+}
+
+func (a *App) ResetFiles(paths []string, workingDirectory string) {
+	a.mu.Lock()
+	a.files = nil
+	a.FilePaths = nil
+	a.mu.Unlock()
+
+	for _, path := range paths {
+		if _, _, err := a.registerOpenedFile(path, workingDirectory); err != nil {
+			log.Printf("[KMRead] 重置文件失败: %s: %v\n", path, err)
+		}
 	}
 }
 

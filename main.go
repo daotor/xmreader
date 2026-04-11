@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,18 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+const newWindowFlag = "--new-window"
+const registerFlag = "--register"
+
+func hasArg(args []string, expected string) bool {
+	for _, arg := range args {
+		if arg == expected {
+			return true
+		}
+	}
+	return false
+}
 
 func registerFileAssoc() error {
 	exePath, err := os.Executable()
@@ -81,7 +94,7 @@ func stringToUTF16LE(s string) []byte {
 func main() {
 	// Handle --register without using flag.Parse (which eats non-flag args like "file.md")
 	for _, arg := range os.Args[1:] {
-		if arg == "--register" {
+		if arg == registerFlag {
 			if err := registerFileAssoc(); err != nil {
 				log.Fatalf("注册文件关联失败: %v", err)
 			}
@@ -89,21 +102,9 @@ func main() {
 		}
 	}
 
-	// Collect file paths from all arguments
-	var filePaths []string
-	for _, arg := range os.Args[1:] {
-		if strings.HasPrefix(arg, "-") {
-			continue
-		}
-		// Check if file exists and is not a directory
-		info, err := os.Stat(arg)
-		if err == nil && !info.IsDir() {
-			abs, err := filepath.Abs(arg)
-			if err == nil {
-				filePaths = append(filePaths, abs)
-			}
-		}
-	}
+	launchArgs := os.Args[1:]
+	filePaths := collectExistingFilePaths(launchArgs, "")
+	allowNewWindow := hasArg(launchArgs, newWindowFlag)
 	log.Printf("接收文件: %v (来自 os.Args: %v)\n", filePaths, os.Args)
 
 	app := NewApp(filePaths)
@@ -112,6 +113,22 @@ func main() {
 		appMenu.Append(menu.AppMenu())
 		appMenu.Append(menu.EditMenu())
 		appMenu.Append(menu.WindowMenu())
+	}
+
+	var primaryInstanceListener net.Listener
+	if !allowNewWindow {
+		reused, err := tryForwardToPrimaryInstance(launchArgs)
+		if err == nil && reused {
+			log.Printf("[KMRead] 已将参数转发给主窗口: %v\n", launchArgs)
+			return
+		}
+
+		primaryInstanceListener, err = startPrimaryInstanceServer(app)
+		if err != nil {
+			log.Printf("[KMRead] 启动主窗口监听失败，将继续以多实例模式运行: %v\n", err)
+		} else {
+			defer primaryInstanceListener.Close()
+		}
 	}
 
 	err := wails.Run(&options.App{
