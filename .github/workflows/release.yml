@@ -1,0 +1,299 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: read
+
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+  WAILS_VERSION: v2.12.0
+
+jobs:
+  prepare:
+    name: Prepare Release Metadata
+    runs-on: ubuntu-24.04
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      release_version: ${{ steps.meta.outputs.release_version }}
+    steps:
+      - name: Resolve tag metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+
+          if [[ "$tag" =~ ^v([0-9]{2})\.([0-9]{4})\.([0-9]{4})$ ]]; then
+            version="${tag#v}"
+            month="${BASH_REMATCH[2]:0:2}"
+            day="${BASH_REMATCH[2]:2:2}"
+            hour="${BASH_REMATCH[3]:0:2}"
+            minute="${BASH_REMATCH[3]:2:2}"
+          else
+            echo "::error::Release tag must follow VERSIONING_RULES.mdc: v{yy}.{MMdd}.{HHmm}. Current tag: $tag"
+            exit 1
+          fi
+
+          if ((10#$month < 1 || 10#$month > 12)); then
+            echo "::error::Invalid month in tag: $tag"
+            exit 1
+          fi
+
+          if ((10#$day < 1 || 10#$day > 31)); then
+            echo "::error::Invalid day in tag: $tag"
+            exit 1
+          fi
+
+          if ((10#$hour > 23)); then
+            echo "::error::Invalid hour in tag: $tag"
+            exit 1
+          fi
+
+          if ((10#$minute > 59)); then
+            echo "::error::Invalid minute in tag: $tag"
+            exit 1
+          fi
+
+          {
+            echo "release_tag=$tag"
+            echo "release_version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-2022
+    needs: prepare
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Wails CLI
+        shell: pwsh
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+          $gopath = (go env GOPATH).Trim()
+          "$gopath\bin" >> $env:GITHUB_PATH
+
+      - name: Sync Wails product version
+        shell: pwsh
+        run: bun ./scripts/set-wails-version.mjs "$env:RELEASE_VERSION"
+
+      - name: Install frontend dependencies
+        shell: pwsh
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend
+        shell: pwsh
+        working-directory: frontend
+        run: bun run build
+
+      - name: Build Windows binary
+        shell: pwsh
+        run: wails build -clean -o xmreader.exe -webview2 embed -s -skipbindings
+
+      - name: Package Windows asset
+        shell: pwsh
+        run: |
+          $assetName = "XMReader-$env:RELEASE_TAG-windows-amd64.zip"
+          Compress-Archive -LiteralPath "build/bin/xmreader.exe" -DestinationPath "build/bin/$assetName" -Force
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmreader-windows-release
+          path: build/bin/XMReader-${{ env.RELEASE_TAG }}-windows-amd64.zip
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    needs: prepare
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Sync Wails product version
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun ./scripts/set-wails-version.mjs "${RELEASE_VERSION}"
+
+      - name: Build macOS artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ./build-macos.sh
+
+      - name: Package macOS assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cp "build/bin/xmreader-installer.dmg" "build/bin/XMReader-${RELEASE_TAG}-macos-universal.dmg"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "build/bin/xmreader.app" \
+            "build/bin/XMReader-${RELEASE_TAG}-macos-universal.zip"
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmreader-macos-release
+          path: |
+            build/bin/XMReader-${{ env.RELEASE_TAG }}-macos-universal.dmg
+            build/bin/XMReader-${{ env.RELEASE_TAG }}-macos-universal.zip
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-24.04
+    needs: prepare
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.release_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev dpkg-dev
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Sync Wails product version
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun ./scripts/set-wails-version.mjs "${RELEASE_VERSION}"
+
+      - name: Build Linux artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ./build-debian-package.sh
+
+      - name: Package Linux assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cp "build/bin/xmreader-linux-amd64.tar.gz" "build/bin/XMReader-${RELEASE_TAG}-linux-amd64.tar.gz"
+          cp "build/bin/xmreader_${RELEASE_VERSION}_amd64.deb" "build/bin/XMReader-${RELEASE_TAG}-linux-amd64.deb"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xmreader-linux-release
+          path: |
+            build/bin/XMReader-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz
+            build/bin/XMReader-${{ env.RELEASE_TAG }}-linux-amd64.deb
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    runs-on: ubuntu-24.04
+    needs:
+      - prepare
+      - build-windows
+      - build-macos
+      - build-linux
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Prepare release bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          find release-assets -type f -exec cp {} dist/ \;
+
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          ls -lah
+
+      - name: Show GitHub CLI version
+        shell: bash
+        run: gh --version
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          assets=(dist/*)
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" "${assets[@]}" --verify-tag --generate-notes
+          fi

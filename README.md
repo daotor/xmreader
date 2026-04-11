@@ -105,6 +105,20 @@ wails build -clean -webview2 embed -o xmreader.exe
 
 For Windows releases, prefer `wails build` instead of plain `go build`.
 
+## GitHub Release Automation
+
+- Pushing a new tag automatically triggers `.github/workflows/release.yml`
+- Version tags must follow [VERSIONING_RULES.mdc](./VERSIONING_RULES.mdc): `v{yy}.{MMdd}.{HHmm}`
+- Example: `v26.0411.1735`
+- The workflow syncs `wails.json -> info.productVersion` from the tag version during CI, so app metadata and the Debian package version stay aligned with the Release
+- Published release assets currently include:
+  - `XMReader-<tag>-windows-amd64.zip`
+  - `XMReader-<tag>-macos-universal.zip`
+  - `XMReader-<tag>-macos-universal.dmg`
+  - `XMReader-<tag>-linux-amd64.tar.gz`
+  - `XMReader-<tag>-linux-amd64.deb`
+  - `SHA256SUMS.txt`
+
 ## Usage
 
 ```cmd

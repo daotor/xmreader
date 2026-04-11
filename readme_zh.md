@@ -105,6 +105,20 @@ wails build -clean -webview2 embed -o xmreader.exe
 
 Windows 正式分发请优先使用 `wails build`，不要使用裸 `go build`。
 
+## GitHub Release 自动发布
+
+- 推送新的 tag 后，会自动触发 `.github/workflows/release.yml`
+- 版本号必须遵循 [VERSIONING_RULES.mdc](./VERSIONING_RULES.mdc)：`v{yy}.{MMdd}.{HHmm}`
+- 示例：`v26.0411.1735`
+- workflow 会在 CI 中把 `wails.json` 的 `info.productVersion` 同步为当前 tag 版本，确保应用元数据和 Debian 包版本与 Release 一致
+- 当前自动发布的资产包括：
+  - `XMReader-<tag>-windows-amd64.zip`
+  - `XMReader-<tag>-macos-universal.zip`
+  - `XMReader-<tag>-macos-universal.dmg`
+  - `XMReader-<tag>-linux-amd64.tar.gz`
+  - `XMReader-<tag>-linux-amd64.deb`
+  - `SHA256SUMS.txt`
+
 ## 使用
 
 ```cmd
