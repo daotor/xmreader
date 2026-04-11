@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/build/bin"
 PACKAGE_WORKDIR="$SCRIPT_DIR/build/deb-workdir"
 APP_NAME="xmreader"
+ICON_SOURCE="$SCRIPT_DIR/assets/appicon.png"
 
 TARGET_ARCH=""
 PACKAGE_ARCH=""
@@ -196,6 +197,11 @@ cd "$SCRIPT_DIR"
 read_project_metadata
 detect_runtime_dependencies
 
+if [[ ! -f "$ICON_SOURCE" ]]; then
+  echo "  [ERROR] App icon not found: $ICON_SOURCE"
+  exit 1
+fi
+
 rm -rf "$PACKAGE_ROOT"
 mkdir -p \
   "$PACKAGE_ROOT/DEBIAN" \
@@ -205,7 +211,7 @@ mkdir -p \
   "$PACKAGE_ROOT/usr/share/mime/packages"
 
 install -Dm755 "$OUTPUT_DIR/$APP_NAME" "$PACKAGE_ROOT/usr/bin/$APP_NAME"
-install -Dm644 "$SCRIPT_DIR/build/appicon.png" "$PACKAGE_ROOT/usr/share/icons/hicolor/512x512/apps/${APP_NAME}.png"
+install -Dm644 "$ICON_SOURCE" "$PACKAGE_ROOT/usr/share/icons/hicolor/512x512/apps/${APP_NAME}.png"
 
 write_control_file
 write_desktop_file
