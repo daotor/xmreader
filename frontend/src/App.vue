@@ -22,9 +22,10 @@
       <p>Markdown 阅读器</p>
       <p class="empty-hint">
         使用方式：<br>
-        双击 <code>.md</code> / <code>.mdc</code> / <code>.go</code> / <code>.bat</code> / <code>.ps1</code> 文件即可打开<br>
-        或命令行：<code>xmreader.exe file.md</code><br>
-        也可直接拖放 Markdown / 源码 / Win脚本 / 图片文件到窗口打开
+        双击打开支持<code>.md</code>/<code>.mdc</code>文件<br>
+        命令行打开：<code>xmreader.exe file.md</code><br>
+        拖放阅读支持 *.md/源码/shell脚本/图片文件<br>
+        Win关联md：<code>xmreader.exe --register</code>
       </p>
     </div>
 
@@ -48,7 +49,7 @@
       <div v-if="isDragActive" class="drop-overlay">
         <div class="drop-overlay-card">
           <div class="drop-overlay-title">释放以打开文件</div>
-          <div class="drop-overlay-text">支持本地 Markdown 与图片文件</div>
+          <div class="drop-overlay-text">支持本地 Markdown、源码、Win脚本与图片文件</div>
         </div>
       </div>
     </Transition>
@@ -278,7 +279,7 @@ async function openPaths(paths: string[], mode: 'replace' | 'append') {
 
     if (nextFiles.length === 0) {
       if (unsupportedCount > 0 && failedCount === 0) {
-        showDropNotice('error', '当前仅支持打开 Markdown、图片和已接入的源码文件')
+        showDropNotice('error', '当前仅支持打开 Markdown、图片和已接入的源码/脚本文件')
       } else {
         showDropNotice('error', '文件打开失败')
       }
