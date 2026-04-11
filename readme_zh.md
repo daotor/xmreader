@@ -127,4 +127,4 @@ xmreader.exe --register
 
 ## License
 
-待补充。
+本项目采用 Apache-2.0 开源协议。详见 [LICENSE](./LICENSE)。
