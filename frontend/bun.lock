@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "kmread-frontend",
+      "name": "xmreader-frontend",
       "dependencies": {
         "@tiptap/core": "^3.22.3",
         "@tiptap/extension-code-block-lowlight": "^3.22.3",

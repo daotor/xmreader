@@ -16,7 +16,7 @@ export interface MarkdownToHtmlOptions {
 }
 
 // WebView2 inside Wails does not reliably render direct file:// image URLs.
-const LOCAL_FILE_ROUTE_PREFIX = '/__kmread_local_file__/'
+const LOCAL_FILE_ROUTE_PREFIX = '/__xmreader_local_file__/'
 
 /**
  * GFM Alert 类型映射到高亮块类型

@@ -23,12 +23,12 @@
     <!-- Empty state -->
     <div v-if="!loading && files.length === 0" class="empty-state">
       <div class="empty-icon">📄</div>
-      <h2>KMRead</h2>
+      <h2>XMReader</h2>
       <p>Markdown 阅读器</p>
       <p class="empty-hint">
         使用方式：<br>
         双击 <code>.md</code> / <code>.mdc</code> 文件即可打开<br>
-        或命令行：<code>kmread.exe file.md</code><br>
+        或命令行：<code>xmreader.exe file.md</code><br>
         也可直接拖放 <code>.md</code> / <code>.mdc</code> / 图片文件到窗口打开
       </p>
     </div>
@@ -90,7 +90,7 @@ interface DropNotice {
 
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdc', '.markdown', '.mdown', '.mkd', '.mkdn'])
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
-const FILE_OPENED_EVENT = 'kmread:file-opened'
+const FILE_OPENED_EVENT = 'xmreader:file-opened'
 
 const files = ref<FileInfo[]>([])
 const currentIndex = ref(0)
@@ -246,7 +246,7 @@ async function openPaths(paths: string[], mode: 'replace' | 'append') {
         nextFiles.push(result.value)
       } else if (result.status === 'rejected') {
         failedCount++
-        console.error('[KMRead] 打开拖放文件失败:', result.reason)
+        console.error('[XMReader] 打开拖放文件失败:', result.reason)
       }
     }
 
@@ -336,22 +336,22 @@ function loadFiles() {
   loading.value = true
   const poll = () => {
     if (!(window as any).go?.main?.App?.GetFiles) {
-      console.log('[KMRead] 等待 Wails 绑定...')
+      console.log('[XMReader] 等待 Wails 绑定...')
       setTimeout(poll, 100)
       return
     }
 
     GetFiles()
       .then((data: FileInfo[]) => {
-        console.log('[KMRead] 收到文件:', data)
+        console.log('[XMReader] 收到文件:', data)
         if (data && data.length > 0) {
           files.value = data
-          document.title = `${data[0].title} - KMRead`
+          document.title = `${data[0].title} - XMReader`
         }
         loading.value = false
       })
       .catch((err: any) => {
-        console.error('[KMRead] GetFiles 失败:', err)
+        console.error('[XMReader] GetFiles 失败:', err)
         loading.value = false
       })
   }
@@ -401,7 +401,7 @@ watch(currentIndex, () => {
 })
 
 watch(currentFile, (file) => {
-  document.title = file ? `${file.title} - KMRead` : 'KMRead'
+  document.title = file ? `${file.title} - XMReader` : 'XMReader'
   nextTick(() => {
     readerContainer.value?.scrollTo({ top: 0 })
     showScrollTop.value = false

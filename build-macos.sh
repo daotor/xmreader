@@ -4,14 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 OUTPUT_DIR="$SCRIPT_DIR/build/bin"
-APP_NAME="kmread"
+APP_NAME="xmreader"
 APP_BUNDLE="$OUTPUT_DIR/$APP_NAME.app"
 DMG_NAME="${APP_NAME}-installer"
 DMG_PATH="$OUTPUT_DIR/$DMG_NAME.dmg"
 DMG_WORKDIR="$OUTPUT_DIR/.dmg-root"
 
 echo "============================================"
-echo "  KMRead: macOS one-click build"
+echo "  XMReader: macOS one-click build"
 echo "============================================"
 echo ""
 
@@ -66,7 +66,7 @@ if command -v hdiutil &>/dev/null; then
     ln -s /Applications "$DMG_WORKDIR/Applications"
 
     hdiutil create \
-      -volname "KMRead Installer" \
+      -volname "XMReader Installer" \
       -srcfolder "$DMG_WORKDIR" \
       -ov \
       -format UDZO \
@@ -86,8 +86,8 @@ echo ""
 echo "============================================"
 echo "  Usage:"
 echo "    open \"$APP_BUNDLE\"                  - launch app"
-echo "    open -a KMRead test.md               - open a file"
-echo "    open -a KMRead rules.mdc             - open an AI rules file"
+echo "    open -a XMReader test.md               - open a file"
+echo "    open -a XMReader rules.mdc             - open an AI rules file"
 if [ -f "$DMG_PATH" ]; then
     echo "    open \"$DMG_PATH\"                    - mount installer package"
 fi

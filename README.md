@@ -1,78 +1,65 @@
-# KMRead
+# XMReader
 
-轻量级 Markdown 阅读器，基于 Go + Wails + Vue。
+[简体中文](./readme_zh.md)
 
-## 功能
+XMReader is a lightweight, cross-platform Markdown reader built with Go, Wails, and Vue, focused on a clean local-document reading experience.
 
-- ✅ Markdown / GFM 渲染（表格、代码高亮、任务列表）
-- ✅ 多文件标签页
-- ✅ 本地图片自动路径解析
-- ✅ Mermaid 流程图 / 时序图渲染
-- ✅ 浅色主题，适配系统
-- ✅ 键盘快捷键
-- ✅ macOS `.app` 构建与 `.md` / `.mdc` 文件关联
+## Overview
 
-## 构建
+- Designed for local Markdown reading without forcing a full editor workflow
+- Supports multi-tab reading, drag-and-drop opening, Mermaid diagrams, local image resolution, and both `.md` and `.mdc` files
+- Includes WebView2 runtime detection, automatic installation fallback, and startup logs on Windows
 
-```bash
-# 前置依赖
-# - Go 1.22+
-# - bun
-# - Wails CLI v2: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+## Features
 
-cd frontend && bun install && bun run build
-cd .. && wails build -o kmread.exe
-```
+- Multi-tab reading for multiple files
+- Markdown and GitHub Flavored Markdown rendering
+- Mermaid diagram rendering
+- Local image and relative-path image resolution
+- Drag-and-drop file opening
+- Support for both `.md` and `.mdc` files
+- System light and dark theme support
+- Windows WebView2 dependency self-check and recovery
 
-产物在 `build/bin/kmread.exe`
+## Tech Stack
 
-## 使用
+- Go + Wails v2
+- Vue 3 + TypeScript
+- Vite
+- TipTap / BlockEditor
+- Mermaid
+
+## Requirements
+
+- Go 1.22+
+- bun
+- Wails CLI v2  
+  `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
+
+## Build
+
+### Windows
 
 ```cmd
-# 双击打开
-kmread.exe file.md
+REM Build the production executable
+build.bat
 
-# 打开多个文件
-kmread.exe file1.md file2.mdc
-
-# 默认复用已打开窗口，把文件追加成标签
-kmread.exe file3.md
-
-# 显式新建窗口
-kmread.exe --new-window file4.md
-
-# 注册 .md / .mdc 文件关联（双击即用）
-kmread.exe --register
+REM Build the NSIS installer (requires NSIS / makensis)
+build-installer.bat
 ```
 
-### Mermaid
-
-````markdown
-```mermaid
-sequenceDiagram
-  participant 用户 as 用户
-  participant 应用层 as 应用层
-  用户 ->> 应用层: 启动流程
-```
-````
-
-阅读态下会直接渲染为流程图；如果语法非法，会回退显示原始 Mermaid 源码和错误提示。
+- The production executable is generated at `build/bin/xmreader.exe`
+- XMReader depends on Microsoft WebView2 Runtime on Windows
+- Startup logs are written to `%LOCALAPPDATA%\XMReader\logs\xmreader.log`
 
 ### macOS
 
 ```bash
-# 构建可安装的 .app（并在可用时额外生成 .dmg）
 ./build-macos.sh
-
-# 直接打开应用
-open build/bin/kmread.app
-
-# 通过系统文件关联打开
-open -a KMRead test.md
-
-# 打开 AI Agent rules 文件
-open -a KMRead rules.mdc
 ```
+
+- Builds the `.app` bundle
+- Generates a `.dmg` when available
 
 ### Ubuntu
 
@@ -83,32 +70,61 @@ sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
 # Ubuntu 24.04 and newer
 sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 
-# 一键构建本机架构产物，并额外打包 tar.gz
 ./build-ubuntu.sh
-
-# 直接运行
-./build/bin/kmread test.md
-
-# 解压分发包（文件名会按本机架构生成，例如 amd64 / arm64）
-tar -xzf build/bin/kmread-linux-<arch>.tar.gz
 ```
 
 ### Debian Package
 
 ```bash
-# 先确保 Ubuntu/Linux 构建依赖已安装
 sudo apt install build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev dpkg-dev
-
-# 一键生成 .deb 安装包
 ./build-debian-package.sh
-
-# 安装
-sudo apt install ./build/bin/kmread_<version>_<arch>.deb
 ```
 
-## 技术栈
+## Manual Build
 
-- Go + Wails v2（桌面框架，WebView2）
-- Vue 3 + TypeScript（前端渲染）
-- Vite（构建工具）
-- marked + highlight.js（Markdown 渲染 + 代码高亮）
+```bash
+cd frontend
+bun install
+bun run build
+
+cd ..
+wails build -clean -webview2 embed -o xmreader.exe
+```
+
+For Windows releases, prefer `wails build` instead of plain `go build`.
+
+## Usage
+
+```cmd
+REM Open one file
+xmreader.exe file.md
+
+REM Open multiple files
+xmreader.exe file1.md file2.mdc
+
+REM Reuse the existing window and append as tabs
+xmreader.exe file3.md
+
+REM Explicitly open a new window
+xmreader.exe --new-window file4.md
+
+REM Register file associations for .md / .mdc
+xmreader.exe --register
+```
+
+## Windows Notes
+
+- If WebView2 Runtime is missing, XMReader will try to download and install it automatically
+- If automatic installation fails, XMReader opens the official WebView2 download page
+- If you see a blank window or startup issues, check `%LOCALAPPDATA%\XMReader\logs\xmreader.log` first
+
+## Supported Content
+
+- Headings, lists, tables, and task lists
+- Code blocks and syntax highlighting
+- Mermaid diagrams
+- Local images and relative-path assets
+
+## License
+
+To be added.

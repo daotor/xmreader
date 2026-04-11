@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 set r=%~dp0
 cd /d !r!
 
-git.exe pull --no-rebase "origin"
+git.exe pull "origin"
 
 git add .
 

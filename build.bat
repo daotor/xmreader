@@ -6,10 +6,10 @@ set "PROJECT_DIR=%~dp0"
 set "FRONTEND_DIR=%PROJECT_DIR%frontend"
 set "OUTPUT_DIR=%PROJECT_DIR%build\bin"
 set "WAILS=%GOPATH%\bin\wails.exe"
-set "EXE_NAME=kmread.exe"
+set "EXE_NAME=xmreader.exe"
 
 echo ============================================
-echo   KMRead: one-click build
+echo   XMReader: one-click build
 echo ============================================
 echo.
 
@@ -52,11 +52,11 @@ if errorlevel 1 (
 )
 echo   Done
 
-:: 4. Compile exe (skip bindings generation so main() won't block)
+:: 4. Compile exe with Wails production tags and embedded WebView2 bootstrapper
 echo.
 echo [4/5] Compiling exe (Go + Wails)...
 cd /d "%PROJECT_DIR%"
-"%WAILS%" build -o "%EXE_NAME%" -s -skipbindings
+"%WAILS%" build -clean -o "%EXE_NAME%" -webview2 embed -s -skipbindings
 if errorlevel 1 (
     echo   [FAIL] wails build
     goto :fail
@@ -78,6 +78,7 @@ echo   Usage:
 echo     %EXE_NAME% test.md       - open a file
 echo     %EXE_NAME% test.mdc      - open an AI rules file
 echo     %EXE_NAME% --register    - associate .md / .mdc files
+echo     build-installer.bat      - generate NSIS installer
 echo ============================================
 echo.
 pause

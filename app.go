@@ -17,8 +17,8 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const fileOpenedEvent = "kmread:file-opened"
-const primaryInstanceChannelID = "kmread-main-window"
+const fileOpenedEvent = "xmreader:file-opened"
+const primaryInstanceChannelID = "xmreader-main-window"
 
 // App struct
 type App struct {
@@ -72,7 +72,7 @@ func startPrimaryInstanceServer(app *App) (net.Listener, error) {
 				if errorsIsClosed(err) {
 					return
 				}
-				log.Printf("[KMRead] 主窗口监听失败: %v\n", err)
+				log.Printf("[XMReader] 主窗口监听失败: %v\n", err)
 				continue
 			}
 
@@ -81,7 +81,7 @@ func startPrimaryInstanceServer(app *App) (net.Listener, error) {
 
 				var payload options.SecondInstanceData
 				if err := json.NewDecoder(conn).Decode(&payload); err != nil {
-					log.Printf("[KMRead] 解析第二实例消息失败: %v\n", err)
+					log.Printf("[XMReader] 解析第二实例消息失败: %v\n", err)
 					return
 				}
 
@@ -103,7 +103,7 @@ func NewApp(filePaths []string) *App {
 
 	for _, path := range filePaths {
 		if _, _, err := a.registerOpenedFile(path, ""); err != nil {
-			log.Printf("[KMRead] 初始化文件失败: %s: %v\n", path, err)
+			log.Printf("[XMReader] 初始化文件失败: %s: %v\n", path, err)
 		}
 	}
 
@@ -222,7 +222,7 @@ func (a *App) appendFiles(paths []string, workingDirectory string, source string
 	for _, path := range paths {
 		fileInfo, _, err := a.registerOpenedFile(path, workingDirectory)
 		if err != nil {
-			log.Printf("[KMRead] %s 打开文件失败: %s: %v\n", source, path, err)
+			log.Printf("[XMReader] %s 打开文件失败: %s: %v\n", source, path, err)
 			continue
 		}
 		openedPaths = append(openedPaths, fileInfo.Path)
@@ -255,7 +255,7 @@ func (a *App) ResetFiles(paths []string, workingDirectory string) {
 
 	for _, path := range paths {
 		if _, _, err := a.registerOpenedFile(path, workingDirectory); err != nil {
-			log.Printf("[KMRead] 重置文件失败: %s: %v\n", path, err)
+			log.Printf("[XMReader] 重置文件失败: %s: %v\n", path, err)
 		}
 	}
 }

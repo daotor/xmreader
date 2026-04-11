@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/build/bin"
 PACKAGE_WORKDIR="$SCRIPT_DIR/build/deb-workdir"
-APP_NAME="kmread"
+APP_NAME="xmreader"
 
 TARGET_ARCH=""
 PACKAGE_ARCH=""
@@ -41,7 +41,7 @@ read_project_metadata() {
     const data = JSON.parse(fs.readFileSync('wails.json', 'utf8'));
     const info = data.info || {};
     const author = data.author || {};
-    const productName = info.productName || data.name || 'kmread';
+    const productName = info.productName || data.name || 'xmreader';
     const version = String(info.productVersion || '1.0.0').replace(/[^0-9A-Za-z.+:~-]/g, '-');
     const comments = info.comments || 'Lightweight Markdown reader built with Wails';
     const maintainerName = author.name || productName;
@@ -164,7 +164,7 @@ EOF
 }
 
 echo "============================================"
-echo "  KMRead: Debian package one-click build"
+echo "  XMReader: Debian package one-click build"
 echo "============================================"
 echo ""
 

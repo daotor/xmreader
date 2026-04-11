@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$SCRIPT_DIR/frontend"
 OUTPUT_DIR="$SCRIPT_DIR/build/bin"
-APP_NAME="kmread"
+APP_NAME="xmreader"
 
 TARGET_ARCH=""
 ARCHIVE_NAME=""
@@ -52,7 +52,7 @@ detect_webkit() {
 }
 
 echo "============================================"
-echo "  KMRead: Ubuntu one-click build"
+echo "  XMReader: Ubuntu one-click build"
 echo "============================================"
 echo ""
 

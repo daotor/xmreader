@@ -143,7 +143,7 @@ async function renderMermaidDiagram() {
 			theme: getMermaidTheme(),
 		})
 
-		const renderId = `kmread-mermaid-${++mermaidRenderCounter}`
+		const renderId = `xmreader-mermaid-${++mermaidRenderCounter}`
 		const { svg } = await mermaid.render(renderId, source)
 		if (token !== mermaidRenderToken) return
 

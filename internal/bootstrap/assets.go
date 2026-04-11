@@ -1,4 +1,4 @@
-package main
+package bootstrap
 
 import (
 	"encoding/base64"
@@ -9,9 +9,9 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
-const localFileAssetRoutePrefix = "/__kmread_local_file__/"
+const localFileAssetRoutePrefix = "/__xmreader_local_file__/"
 
-func localFileAssetMiddleware() assetserver.Middleware {
+func LocalFileAssetMiddleware() assetserver.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, localFileAssetRoutePrefix) {
