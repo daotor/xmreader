@@ -105,6 +105,8 @@ const showSourceEditor = computed(() => !isMermaid.value || isEditable.value || 
 let mermaidRenderToken = 0
 let mermaidRenderTimer: ReturnType<typeof setTimeout> | null = null
 let themeObserver: MutationObserver | null = null
+let mermaidRefreshFrame: number | null = null
+let lastMermaidRenderSignature = ''
 
 function getMermaidTheme() {
 	return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
@@ -112,6 +114,18 @@ function getMermaidTheme() {
 
 function getMermaidSource() {
 	return (props.node.textContent || '').trim()
+}
+
+function getMermaidRenderSignature() {
+	if (!isMermaid.value) {
+		return ''
+	}
+
+	return JSON.stringify({
+		language: currentLanguage.value.toLowerCase(),
+		theme: getMermaidTheme(),
+		source: getMermaidSource(),
+	})
 }
 
 async function renderMermaidDiagram() {
@@ -175,6 +189,35 @@ function scheduleMermaidRender() {
 		mermaidRenderTimer = null
 		void renderMermaidDiagram()
 	}, isEditable.value ? 120 : 0)
+}
+
+function requestMermaidRender(force = false) {
+	if (!isMermaid.value) {
+		lastMermaidRenderSignature = ''
+		scheduleMermaidRender()
+		return
+	}
+
+	const signature = getMermaidRenderSignature()
+	if (!force && signature === lastMermaidRenderSignature) {
+		return
+	}
+
+	lastMermaidRenderSignature = signature
+	scheduleMermaidRender()
+}
+
+function queueMermaidRender(force = false) {
+	nextTick(() => {
+		if (mermaidRefreshFrame !== null) {
+			cancelAnimationFrame(mermaidRefreshFrame)
+		}
+
+		mermaidRefreshFrame = requestAnimationFrame(() => {
+			mermaidRefreshFrame = null
+			requestMermaidRender(force)
+		})
+	})
 }
 
 // ==================== 固定高度 ====================
@@ -303,17 +346,21 @@ function onEditorTransaction() {
 }
 
 function onEditorUpdate() {
+	if (isMermaid.value) {
+		queueMermaidRender()
+	}
+
 	if (wordWrap.value) syncLineHeights()
 }
 
 let resizeObserver: ResizeObserver | null = null
 
 watch(() => props.node.textContent, () => {
-	scheduleMermaidRender()
+	queueMermaidRender()
 })
 
 watch(currentLanguage, () => {
-	scheduleMermaidRender()
+	queueMermaidRender(true)
 })
 
 onMounted(() => {
@@ -331,7 +378,7 @@ onMounted(() => {
 
 	themeObserver = new MutationObserver(() => {
 		if (isMermaid.value) {
-			scheduleMermaidRender()
+			queueMermaidRender(true)
 		}
 	})
 	themeObserver.observe(document.documentElement, {
@@ -339,7 +386,7 @@ onMounted(() => {
 		attributeFilter: ['data-theme'],
 	})
 
-	scheduleMermaidRender()
+	queueMermaidRender(true)
 	document.addEventListener('click', handleClickOutside, true)
 })
 
@@ -351,6 +398,9 @@ onUnmounted(() => {
 	themeObserver?.disconnect()
 	if (mermaidRenderTimer) {
 		clearTimeout(mermaidRenderTimer)
+	}
+	if (mermaidRefreshFrame !== null) {
+		cancelAnimationFrame(mermaidRefreshFrame)
 	}
 	document.removeEventListener('click', handleClickOutside, true)
 })
