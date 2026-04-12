@@ -165,3 +165,47 @@ xmreader.exe --register
 ## License
 
 本项目采用 Apache-2.0 开源协议。详见 [LICENSE](./LICENSE)。
+
+## 第三方组件与许可证说明
+
+XMReader 使用了若干第三方软件组件。以下清单用于归档主要直接依赖、构建期组件，以及需要额外说明的外部运行时，便于第三方许可证合规审查与归属说明。
+
+除特别说明外，下面列出的开源组件均仍然受其各自上游项目许可证和版权声明约束。
+
+下表中的版本号基于本次更新 README 时工作区内已审计到的实际版本状态。
+
+### 直接使用 / 随应用构建的开源组件
+
+| 组件 | 版本 | 分类 | 许可证 | 用途 / 范围 |
+| --- | --- | --- | --- | --- |
+| Wails | `v2.12.0` | 开源 | MIT | Go 桌面应用框架 |
+| `go-webview2` | `v1.0.22` | 开源 | MIT | Windows 下 WebView2 加载与绑定，供启动检测与引导逻辑使用 |
+| `golang.org/x/sys` | `v0.30.0` | 开源 | BSD-3-Clause | Windows 注册表访问与底层系统集成 |
+| Vue | `3.5.32` | 开源 | MIT | 前端 UI 框架 |
+| TipTap 系列包（`@tiptap/core`、`@tiptap/*`、`@tiptap/pm`） | `3.22.3` | 开源 | MIT | Block 编辑器与 Markdown 阅读核心能力 |
+| Marked | `12.0.2` | 开源 | MIT | Markdown 解析 |
+| Mermaid | `11.14.0` | 开源 | MIT | 图表渲染 |
+| Lowlight | `3.3.0` | 开源 | MIT | 代码高亮适配层 |
+| Highlight.js | `11.11.1` | 开源 | BSD-3-Clause | 代码语法高亮 |
+
+### 构建期使用的开源组件
+
+| 组件 | 版本 | 分类 | 许可证 | 用途 / 范围 |
+| --- | --- | --- | --- | --- |
+| Vite | `5.4.21` | 开源 | MIT | 前端构建工具 |
+| `@vitejs/plugin-vue` | `5.2.4` | 开源 | MIT | Vite 的 Vue SFC 支持 |
+| TypeScript | `5.9.3` | 开源 | Apache-2.0 | 类型检查与编译 |
+| `vue-tsc` | `2.2.12` | 开源 | MIT | Vue TypeScript 类型检查 |
+| NSIS / `makensis` | 外部工具 | 开源 | zlib/libpng | 可选的 Windows 安装包生成工具，仅在执行 `build-installer.bat` 时需要 |
+
+### 闭源 / 专有外部组件
+
+| 组件 | 版本 | 分类 | 许可证 / 条款 | 用途 / 范围 |
+| --- | --- | --- | --- | --- |
+| Microsoft Edge WebView2 Runtime | 外部运行时 | 闭源 / 专有 | Microsoft WebView2 Runtime Terms and Conditions License | Windows 平台渲染应用 WebView 所必需；XMReader 会检测并可能自动下载或触发安装 |
+
+### 合规说明
+
+- 本节重点列出主要直接依赖和需要单独说明的外部组件，并不能替代对全部传递依赖的完整审计。完整依赖链请结合 `go.mod`、`go.sum`、`frontend/package.json` 和 `frontend/bun.lock` 一并审阅。
+- Windows 构建或运行过程中，可能会提示下载、安装或调用 Microsoft Edge WebView2 Runtime。该运行时及其安装程序受 Microsoft 自身条款约束，不属于 Apache-2.0 或上述开源许可证范围。
+- macOS 与 Linux 版本还依赖操作系统或发行版提供的系统 WebView 组件；这些系统组件不由本仓库打包分发，其许可证应以对应平台或发行版为准。

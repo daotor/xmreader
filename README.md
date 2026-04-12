@@ -165,3 +165,47 @@ xmreader.exe --register
 ## License
 
 Licensed under the Apache-2.0 License. See [LICENSE](./LICENSE) for details.
+
+## Third-Party Notices
+
+XMReader uses third-party software. The following summary is intended for attribution and compliance reference and focuses on major direct dependencies, build-time components, and externally required runtime components.
+
+Unless otherwise stated, the listed open-source components remain under their own upstream licenses and copyrights.
+
+The versions below reflect the audited workspace state at the time this README was updated.
+
+### Direct / Bundled Open-Source Components
+
+| Component | Version | Classification | License | Scope / Purpose |
+| --- | --- | --- | --- | --- |
+| Wails | `v2.12.0` | Open source | MIT | Desktop application framework used by the Go host application |
+| `go-webview2` | `v1.0.22` | Open source | MIT | Windows WebView2 loader / binding used by XMReader bootstrap logic |
+| `golang.org/x/sys` | `v0.30.0` | Open source | BSD-3-Clause | Windows registry and low-level OS integration |
+| Vue | `3.5.32` | Open source | MIT | Frontend UI framework |
+| TipTap package family (`@tiptap/core`, `@tiptap/*`, `@tiptap/pm`) | `3.22.3` | Open source | MIT | Block-based rich text / Markdown reader editing foundation |
+| Marked | `12.0.2` | Open source | MIT | Markdown parsing |
+| Mermaid | `11.14.0` | Open source | MIT | Diagram rendering |
+| Lowlight | `3.3.0` | Open source | MIT | Syntax highlighting adapter |
+| Highlight.js | `11.11.1` | Open source | BSD-3-Clause | Code syntax highlighting |
+
+### Build-Time Open-Source Components
+
+| Component | Version | Classification | License | Scope / Purpose |
+| --- | --- | --- | --- | --- |
+| Vite | `5.4.21` | Open source | MIT | Frontend build tool |
+| `@vitejs/plugin-vue` | `5.2.4` | Open source | MIT | Vue SFC support in Vite |
+| TypeScript | `5.9.3` | Open source | Apache-2.0 | Type checking and compilation |
+| `vue-tsc` | `2.2.12` | Open source | MIT | Vue TypeScript checking |
+| NSIS / `makensis` | External tool | Open source | zlib/libpng | Optional Windows installer generation; required only when running `build-installer.bat` |
+
+### Proprietary / Closed-Source External Components
+
+| Component | Version | Classification | License / Terms | Scope / Purpose |
+| --- | --- | --- | --- | --- |
+| Microsoft Edge WebView2 Runtime | External runtime | Proprietary / closed source | Microsoft WebView2 Runtime Terms and Conditions License | Required on Windows for rendering the application WebView; XMReader may detect, download, or invoke installation of this runtime |
+
+### Compliance Notes
+
+- This summary focuses on major direct dependencies and externally required components. It is not a complete replacement for reviewing all transitive dependencies recorded in `go.mod`, `go.sum`, `frontend/package.json`, and `frontend/bun.lock`.
+- Windows builds may prompt for, download, or install Microsoft Edge WebView2 Runtime. That runtime and its installer are governed by Microsoft terms, not by Apache-2.0 or the open-source licenses listed above.
+- macOS and Linux builds also rely on system-provided webview stacks supplied by the operating system or Linux distribution. Those system components are not bundled by this repository and remain subject to their own vendor / distribution licenses.
