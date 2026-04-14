@@ -42,8 +42,61 @@
         :document-url="currentFile.path" :editable="false" :reader-mode="true" :open-links-on-click="false" />
     </div>
 
+    <div v-if="currentFile && !loading" class="outline-dock">
+      <Transition name="outline-panel">
+        <aside v-if="isOutlineOpen" id="xmreader-outline-panel" class="outline-panel" aria-label="文档大纲">
+          <div class="outline-panel-header">
+            <div>
+              <p class="outline-panel-eyebrow">Navigation</p>
+              <h3>文档大纲</h3>
+            </div>
+            <span class="outline-panel-count">{{ outlineEntries.length }}</span>
+          </div>
+
+          <div v-if="hasOutline" class="outline-panel-body">
+            <button
+              v-for="entry in outlineEntries"
+              :key="entry.id"
+              type="button"
+              class="outline-item"
+              :class="{ 'outline-item--active': activeOutlineId === entry.id }"
+              :style="{ '--outline-depth': String(getOutlineDepth(entry.level)) }"
+              @click="scrollToHeading(entry.id)"
+            >
+              <span class="outline-item-rail" aria-hidden="true"></span>
+              <span class="outline-item-label">{{ entry.text }}</span>
+            </button>
+          </div>
+
+          <div v-else class="outline-empty">
+            <p class="outline-empty-title">当前文档暂无标题</p>
+            <p class="outline-empty-text">正文中使用 H1-H5 标题后，这里会自动生成可跳转的大纲。</p>
+          </div>
+        </aside>
+      </Transition>
+
+      <button
+        type="button"
+        class="outline-toggle"
+        :class="{ 'outline-toggle--open': isOutlineOpen, 'outline-toggle--empty': !hasOutline }"
+        :title="isOutlineOpen ? '收起大纲' : hasOutline ? '展开大纲' : '当前文档暂无可用大纲'"
+        :aria-expanded="isOutlineOpen"
+        :aria-label="isOutlineOpen ? '收起大纲' : '展开大纲'"
+        aria-controls="xmreader-outline-panel"
+        @click="toggleOutline"
+      >
+        <span class="outline-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+        <span class="outline-toggle-text">大纲</span>
+      </button>
+    </div>
+
     <!-- Scroll to top button -->
-    <button v-if="showScrollTop" class="scroll-top" @click="scrollToTop" title="回到顶部">↑</button>
+    <button v-if="showScrollTop" type="button" class="scroll-top" @click="scrollToTop" title="回到顶部"
+      aria-label="回到顶部">↑</button>
 
     <Transition name="drop-overlay">
       <div v-if="isDragActive" class="drop-overlay">
@@ -74,18 +127,32 @@ interface DropNotice {
   message: string
 }
 
+interface OutlineEntry {
+  id: string
+  text: string
+  level: number
+}
+
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
 const FILE_OPENED_EVENT = 'xmreader:file-opened'
+const HEADING_SELECTOR = '.block-editor-content h1, .block-editor-content h2, .block-editor-content h3, .block-editor-content h4, .block-editor-content h5'
+const OUTLINE_ID_PREFIX = 'xm-outline-'
+const GENERATED_OUTLINE_ID_FLAG = 'true'
 
 const files = ref<FileInfo[]>([])
 const currentIndex = ref(0)
 const loading = ref(true)
 const showScrollTop = ref(false)
 const readerContainer = ref<HTMLElement | null>(null)
+const outlineEntries = ref<OutlineEntry[]>([])
+const activeOutlineId = ref('')
+const isOutlineOpen = ref(false)
 const isDragActive = ref(false)
 const dropNotice = ref<DropNotice | null>(null)
 let systemThemeMedia: MediaQueryList | null = null
 let cleanupThemeMediaListener: (() => void) | null = null
+let outlineObserver: MutationObserver | null = null
+let outlineRefreshFrame: number | null = null
 let dragDepth = 0
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let fileDropRegistered = false
@@ -93,6 +160,12 @@ let removeFileOpenListener: (() => void) | null = null
 
 const currentFile = computed<FileInfo | null>(() => {
   return files.value[currentIndex.value] || null
+})
+
+const hasOutline = computed(() => outlineEntries.value.length > 0)
+const outlineBaseLevel = computed(() => {
+  if (outlineEntries.value.length === 0) return 1
+  return Math.min(...outlineEntries.value.map((entry) => entry.level))
 })
 
 function getFileName(filePath: string): string {
@@ -109,6 +182,10 @@ function getFileExtension(filePath: string): string {
   const fileName = getFileName(filePath).toLowerCase()
   const extIndex = fileName.lastIndexOf('.')
   return extIndex >= 0 ? fileName.slice(extIndex) : ''
+}
+
+function getOutlineDepth(level: number): number {
+  return Math.max(0, level - outlineBaseLevel.value)
 }
 
 function isImageFile(filePath: string): boolean {
@@ -142,7 +219,22 @@ function handleReaderLinkClick(event: MouseEvent) {
   if (!anchor) return
 
   const rawHref = anchor.getAttribute('href')?.trim()
-  if (!rawHref || rawHref.startsWith('#')) {
+  if (!rawHref) {
+    return
+  }
+
+  if (rawHref.startsWith('#')) {
+    const decodedId = decodeURIComponent(rawHref.slice(1))
+    const targetElement = Array.from(readerContainer.value?.querySelectorAll<HTMLElement>('[id]') ?? [])
+      .find((element) => element.id === decodedId)
+
+    if (targetElement && readerContainer.value) {
+      event.preventDefault()
+      event.stopPropagation()
+      const top = Math.max(0, getElementOffsetTop(targetElement) - 24)
+      activeOutlineId.value = targetElement.dataset.xmOutlineId || activeOutlineId.value
+      readerContainer.value.scrollTo({ top, behavior: 'smooth' })
+    }
     return
   }
 
@@ -168,6 +260,140 @@ function handleReaderLinkClick(event: MouseEvent) {
     event.stopPropagation()
     showDropNotice('error', '当前仅支持在 XMReader 内打开 Markdown 链接')
   }
+}
+
+function toggleOutline() {
+  isOutlineOpen.value = !isOutlineOpen.value
+  if (isOutlineOpen.value) {
+    scheduleOutlineRefresh()
+  }
+}
+
+function disconnectOutlineObserver() {
+  outlineObserver?.disconnect()
+  outlineObserver = null
+}
+
+function cancelOutlineRefresh() {
+  if (outlineRefreshFrame !== null) {
+    cancelAnimationFrame(outlineRefreshFrame)
+    outlineRefreshFrame = null
+  }
+}
+
+function scheduleOutlineRefresh() {
+  cancelOutlineRefresh()
+  outlineRefreshFrame = requestAnimationFrame(() => {
+    outlineRefreshFrame = null
+    refreshOutline()
+  })
+}
+
+function getHeadingElements(): HTMLElement[] {
+  return Array.from(readerContainer.value?.querySelectorAll<HTMLElement>(HEADING_SELECTOR) ?? [])
+}
+
+function getHeadingAnchorId(index: number): string {
+  return `${OUTLINE_ID_PREFIX}${index + 1}`
+}
+
+function getHeadingElementByOutlineId(outlineId: string): HTMLElement | null {
+  return readerContainer.value?.querySelector<HTMLElement>(`[data-xm-outline-id="${outlineId}"]`) ?? null
+}
+
+function getElementOffsetTop(element: HTMLElement): number {
+  const container = readerContainer.value
+  if (!container) return 0
+  const containerRect = container.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  return elementRect.top - containerRect.top + container.scrollTop
+}
+
+function refreshOutline() {
+  const headingElements = getHeadingElements()
+  const nextEntries = headingElements.map((heading, index) => {
+    const outlineId = getHeadingAnchorId(index)
+    const headingText = heading.textContent?.replace(/\s+/g, ' ').trim() || `未命名章节 ${index + 1}`
+
+    heading.dataset.xmOutlineId = outlineId
+    if (!heading.id || heading.dataset.xmOutlineGeneratedId === GENERATED_OUTLINE_ID_FLAG) {
+      heading.id = outlineId
+      heading.dataset.xmOutlineGeneratedId = GENERATED_OUTLINE_ID_FLAG
+    }
+
+    return {
+      id: outlineId,
+      text: headingText,
+      level: Number(heading.tagName.slice(1)),
+    }
+  })
+
+  outlineEntries.value = nextEntries
+  if (!nextEntries.some((entry) => entry.id === activeOutlineId.value)) {
+    activeOutlineId.value = nextEntries[0]?.id ?? ''
+  }
+
+  updateActiveOutline()
+}
+
+function updateActiveOutline() {
+  const container = readerContainer.value
+  if (!container || outlineEntries.value.length === 0) {
+    activeOutlineId.value = ''
+    return
+  }
+
+  const scrollPosition = container.scrollTop + 72
+  let nextActiveId = ''
+
+  for (const entry of outlineEntries.value) {
+    const heading = getHeadingElementByOutlineId(entry.id)
+    if (!heading) continue
+
+    if (getElementOffsetTop(heading) <= scrollPosition) {
+      nextActiveId = entry.id
+    } else {
+      break
+    }
+  }
+
+  activeOutlineId.value = nextActiveId
+}
+
+function scrollToHeading(outlineId: string) {
+  const container = readerContainer.value
+  const heading = getHeadingElementByOutlineId(outlineId)
+  if (!container || !heading) return
+
+  const top = Math.max(0, getElementOffsetTop(heading) - 24)
+  activeOutlineId.value = outlineId
+  container.scrollTo({ top, behavior: 'smooth' })
+
+  if (window.innerWidth <= 960) {
+    isOutlineOpen.value = false
+  }
+}
+
+function observeReaderContent(container: HTMLElement | null) {
+  disconnectOutlineObserver()
+
+  if (!container) {
+    outlineEntries.value = []
+    activeOutlineId.value = ''
+    return
+  }
+
+  outlineObserver = new MutationObserver(() => {
+    scheduleOutlineRefresh()
+  })
+
+  outlineObserver.observe(container, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  })
+
+  scheduleOutlineRefresh()
 }
 
 function showDropNotice(type: DropNotice['type'], message: string) {
@@ -409,6 +635,7 @@ function handleKeydown(e: KeyboardEvent) {
 
 function handleReaderScroll() {
   showScrollTop.value = (readerContainer.value?.scrollTop || 0) > 300
+  updateActiveOutline()
 }
 
 function scrollToTop() {
@@ -427,6 +654,8 @@ watch(currentIndex, () => {
   nextTick(() => {
     readerContainer.value?.scrollTo({ top: 0 })
     showScrollTop.value = false
+    activeOutlineId.value = ''
+    scheduleOutlineRefresh()
   })
 })
 
@@ -435,8 +664,14 @@ watch(currentFile, (file) => {
   nextTick(() => {
     readerContainer.value?.scrollTo({ top: 0 })
     showScrollTop.value = false
+    activeOutlineId.value = ''
+    scheduleOutlineRefresh()
   })
 }, { immediate: true })
+
+watch(readerContainer, (container) => {
+  observeReaderContent(container)
+})
 
 function truncatePath(p: string): string {
   if (p.length <= 40) return p
@@ -461,6 +696,8 @@ onUnmounted(() => {
   window.removeEventListener('dragover', handleWindowDragOver)
   window.removeEventListener('dragleave', handleWindowDragLeave)
   window.removeEventListener('drop', handleWindowDrop)
+  disconnectOutlineObserver()
+  cancelOutlineRefresh()
   OnFileDropOff()
   fileDropRegistered = false
   removeFileOpenListener?.()

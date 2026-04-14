@@ -105,7 +105,7 @@ body.be-theme-dark {
 .block-editor.theme-dark { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.15) transparent; }
 
 /* === 编辑器基础 === */
-.block-editor-content { outline: none; font-size: 16px; line-height: 1.75; color: var(--be-text); }
+.block-editor-content { outline: none; font-size: var(--reader-body-font-size, 16px); line-height: 1.75; color: var(--be-text); }
 .block-editor-content p { margin: 0.5em 0; }
 
 /* === 标题 === */
