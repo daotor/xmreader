@@ -82,6 +82,8 @@ const filteredLanguages = computed(() => {
 	)
 })
 
+const isOverlayOpen = computed(() => showLangDropdown.value || showSettingsDropdown.value)
+
 function selectLanguage(lang: string) {
 	props.updateAttributes({ language: lang })
 	showLangDropdown.value = false
@@ -421,7 +423,12 @@ function handleClickOutside(event: MouseEvent) {
 <template>
 	<NodeViewWrapper
 		class="cb"
-		:class="{ 'cb--wrap': wordWrap, 'cb--fixed-height': fixedHeight, 'cb--mermaid': isMermaid }"
+		:class="{
+			'cb--wrap': wordWrap,
+			'cb--fixed-height': fixedHeight,
+			'cb--mermaid': isMermaid,
+			'cb--overlay-active': isOverlayOpen,
+		}"
 		as="div"
 	>
 		<div class="cb-toolbar" contenteditable="false">
@@ -589,10 +596,15 @@ function handleClickOutside(event: MouseEvent) {
 <style scoped>
 .cb {
 	position: relative;
+	z-index: 0;
 	margin: 0.5em 0;
 	border-radius: 8px;
 	background: var(--be-code-bg, #f3f4f6);
 	border: 1px solid var(--be-border, #e5e7eb);
+}
+
+.cb--overlay-active {
+	z-index: 40;
 }
 
 .cb-toolbar {

@@ -2,8 +2,14 @@
   <div class="app">
     <!-- Tab bar for multiple files -->
     <div v-if="files.length > 1" class="tab-bar">
-      <div v-for="(file, idx) in files" :key="file.path" class="tab" :class="{ active: currentIndex === idx }"
-        @click="currentIndex = idx">
+      <div
+        v-for="(file, idx) in files"
+        :key="file.path"
+        class="tab"
+        :class="{ active: currentIndex === idx }"
+        @click="activateTab(idx)"
+        @mousedown="handleTabMouseDown($event, idx)"
+      >
         <span class="tab-title">{{ file.title }}</span>
         <span class="tab-path" :title="file.path">{{ truncatePath(file.path) }}</span>
       </div>
@@ -477,6 +483,35 @@ function applyOpenedFiles(nextFiles: FileInfo[], mode: 'replace' | 'append') {
 
   files.value = mergedFiles
   currentIndex.value = nextIndex
+}
+
+function activateTab(index: number) {
+  if (index < 0 || index >= files.value.length) return
+  currentIndex.value = index
+}
+
+function closeTab(index: number) {
+  if (index < 0 || index >= files.value.length) return
+
+  const nextFiles = files.value.filter((_, fileIndex) => fileIndex !== index)
+  let nextIndex = currentIndex.value
+
+  if (index < currentIndex.value) {
+    nextIndex -= 1
+  } else if (index === currentIndex.value) {
+    nextIndex = Math.min(currentIndex.value, nextFiles.length - 1)
+  }
+
+  files.value = nextFiles
+  currentIndex.value = Math.max(0, nextIndex)
+}
+
+function handleTabMouseDown(event: MouseEvent, index: number) {
+  if (event.button !== 1) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  closeTab(index)
 }
 
 async function openPaths(paths: string[], mode: 'replace' | 'append') {
