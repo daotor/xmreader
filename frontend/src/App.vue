@@ -42,11 +42,49 @@
     </div>
 
     <!-- Markdown content -->
-    <div v-if="currentFile && !loading" ref="readerContainer" class="reader" @click.capture="handleReaderLinkClick"
-      @scroll="handleReaderScroll">
+    <div
+      v-if="currentFile && !loading"
+      ref="readerContainer"
+      class="reader"
+      @click.capture="handleReaderLinkClick"
+      @contextmenu="handleReaderContextMenu"
+      @scroll="handleReaderScroll"
+    >
       <BlockEditor :key="currentFile.path" :content="currentFile.content" content-format="markdown"
         :document-url="currentFile.path" :editable="false" :reader-mode="true" :open-links-on-click="false" />
     </div>
+
+    <Transition name="context-menu">
+      <div
+        v-if="readerContextMenu.visible && currentFile"
+        ref="readerContextMenuRef"
+        class="reader-context-menu"
+        :style="{ left: `${readerContextMenu.x}px`, top: `${readerContextMenu.y}px` }"
+        tabindex="-1"
+        role="menu"
+        aria-label="文档操作菜单"
+        @contextmenu.prevent
+      >
+        <template v-for="item in readerContextMenuItems" :key="item.key">
+          <button
+            v-if="item.kind === 'action'"
+            type="button"
+            class="reader-context-menu__item"
+            role="menuitem"
+            @click="handleReaderContextMenuAction(item.action)"
+          >
+            <span class="reader-context-menu__label">{{ item.label }}</span>
+            <span class="reader-context-menu__hint">{{ item.hint }}</span>
+          </button>
+          <div
+            v-else
+            class="reader-context-menu__divider"
+            role="separator"
+            aria-hidden="true"
+          ></div>
+        </template>
+      </div>
+    </Transition>
 
     <div v-if="currentFile && !loading" class="outline-dock">
       <Transition name="outline-panel">
@@ -120,7 +158,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import BlockEditor from './blockeditor/components/BlockEditor.vue'
 import { filePathToFileUrl, resolveDocumentLinkPath } from './blockeditor/utils/markdown-parser'
 import { GetFiles, ReadFile } from '../wailsjs/go/main/App'
-import { BrowserOpenURL, EventsOn, OnFileDrop, OnFileDropOff, WindowSetTitle } from '../wailsjs/runtime/runtime'
+import { BrowserOpenURL, ClipboardSetText, EventsOn, OnFileDrop, OnFileDropOff, WindowSetTitle } from '../wailsjs/runtime/runtime'
 
 interface FileInfo {
   path: string
@@ -139,22 +177,51 @@ interface OutlineEntry {
   level: number
 }
 
+interface ReaderContextMenuState {
+  visible: boolean
+  x: number
+  y: number
+}
+
+type ReaderContextMenuAction = 'open-directory' | 'copy-path' | 'copy-content' | 'refresh-document' | 'toggle-theme'
+type ReaderContextMenuItem =
+  | {
+      kind: 'action'
+      key: string
+      action: ReaderContextMenuAction
+      label: string
+      hint: string
+    }
+  | {
+      kind: 'divider'
+      key: string
+    }
+
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg', '.avif'])
+const MARKDOWN_EXTENSIONS = new Set(['.md', '.mdc', '.markdown', '.mdown', '.mkd', '.mkdn'])
 const FILE_OPENED_EVENT = 'xmreader:file-opened'
 const HEADING_SELECTOR = '.block-editor-content h1, .block-editor-content h2, .block-editor-content h3, .block-editor-content h4, .block-editor-content h5'
 const OUTLINE_ID_PREFIX = 'xm-outline-'
 const GENERATED_OUTLINE_ID_FLAG = 'true'
+const THEME_STORAGE_KEY = 'xmdor-theme'
 
 const files = ref<FileInfo[]>([])
 const currentIndex = ref(0)
 const loading = ref(true)
 const showScrollTop = ref(false)
 const readerContainer = ref<HTMLElement | null>(null)
+const readerContextMenuRef = ref<HTMLElement | null>(null)
 const outlineEntries = ref<OutlineEntry[]>([])
 const activeOutlineId = ref('')
 const isOutlineOpen = ref(false)
+const currentTheme = ref<'light' | 'dark'>('light')
 const isDragActive = ref(false)
 const dropNotice = ref<DropNotice | null>(null)
+const readerContextMenu = ref<ReaderContextMenuState>({
+  visible: false,
+  x: 0,
+  y: 0,
+})
 let systemThemeMedia: MediaQueryList | null = null
 let cleanupThemeMediaListener: (() => void) | null = null
 let outlineObserver: MutationObserver | null = null
@@ -169,6 +236,25 @@ const currentFile = computed<FileInfo | null>(() => {
 })
 
 const hasOutline = computed(() => outlineEntries.value.length > 0)
+const isCurrentMarkdownFile = computed(() => {
+  const path = currentFile.value?.path
+  return Boolean(path && MARKDOWN_EXTENSIONS.has(getFileExtension(path)))
+})
+const isDarkTheme = computed(() => currentTheme.value === 'dark')
+const readerContextMenuItems = computed<ReaderContextMenuItem[]>(() => [
+  { kind: 'action', key: 'open-directory', action: 'open-directory', label: '打开目录', hint: 'Open Folder' },
+  { kind: 'action', key: 'copy-path', action: 'copy-path', label: '复制路径', hint: 'Copy Path' },
+  { kind: 'action', key: 'copy-content', action: 'copy-content', label: '复制内容', hint: 'Copy Markdown' },
+  { kind: 'action', key: 'refresh-document', action: 'refresh-document', label: '刷新文档', hint: 'Refresh' },
+  { kind: 'divider', key: 'theme-divider' },
+  {
+    kind: 'action',
+    key: 'toggle-theme',
+    action: 'toggle-theme',
+    label: '切换主题',
+    hint: isDarkTheme.value ? 'Light Mode' : 'Dark Mode',
+  },
+])
 const outlineBaseLevel = computed(() => {
   if (outlineEntries.value.length === 0) return 1
   return Math.min(...outlineEntries.value.map((entry) => entry.level))
@@ -217,6 +303,171 @@ function syncWindowTitle(file: FileInfo | null) {
 
 function isExternalLinkHref(href: string): boolean {
   return /^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/\/)/.test(href) && !href.toLowerCase().startsWith('file://')
+}
+
+function closeReaderContextMenu() {
+  if (!readerContextMenu.value.visible) return
+
+  readerContextMenu.value = {
+    visible: false,
+    x: 0,
+    y: 0,
+  }
+}
+
+function positionReaderContextMenu(x: number, y: number) {
+  const menu = readerContextMenuRef.value
+  const menuWidth = menu?.offsetWidth ?? 220
+  const menuHeight = menu?.offsetHeight ?? 264
+  const viewportPadding = 12
+
+  readerContextMenu.value = {
+    visible: true,
+    x: Math.min(Math.max(viewportPadding, x), window.innerWidth - menuWidth - viewportPadding),
+    y: Math.min(Math.max(viewportPadding, y), window.innerHeight - menuHeight - viewportPadding),
+  }
+}
+
+function focusReaderContextMenu() {
+  readerContextMenuRef.value?.focus()
+}
+
+function handleReaderContextMenu(event: MouseEvent) {
+  if (!currentFile.value || !isCurrentMarkdownFile.value) {
+    closeReaderContextMenu()
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  positionReaderContextMenu(event.clientX, event.clientY)
+  nextTick(() => {
+    positionReaderContextMenu(event.clientX, event.clientY)
+    focusReaderContextMenu()
+  })
+}
+
+async function writeClipboardText(text: string) {
+  if ((window as any).runtime?.ClipboardSetText) {
+    const copied = await ClipboardSetText(text)
+    if (!copied) {
+      throw new Error('Wails 剪贴板写入失败')
+    }
+    return
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  throw new Error('当前环境不支持复制到剪贴板')
+}
+
+async function openCurrentDocumentDirectory(filePath: string) {
+  const openDocumentDirectory = (window as any).go?.main?.App?.OpenDocumentDirectory as
+    | ((path: string) => Promise<void>)
+    | undefined
+
+  if (!openDocumentDirectory) {
+    throw new Error('打开文档目录接口尚未就绪')
+  }
+
+  await openDocumentDirectory(filePath)
+}
+
+async function refreshCurrentDocument() {
+  const file = currentFile.value
+  if (!file) {
+    throw new Error('当前没有可刷新的文档')
+  }
+
+  const refreshedFile = await createFileInfoFromPath(file.path)
+  if (!refreshedFile) {
+    throw new Error('当前文档无法刷新')
+  }
+
+  const nextFiles = [...files.value]
+  nextFiles[currentIndex.value] = refreshedFile
+  files.value = nextFiles
+}
+
+function resolveThemePreference(): 'light' | 'dark' {
+  const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+  if (savedTheme === 'dark' || savedTheme === 'light') {
+    return savedTheme
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyTheme(theme: 'light' | 'dark') {
+  currentTheme.value = theme
+  document.documentElement.setAttribute('data-theme', theme)
+}
+
+function toggleTheme() {
+  const nextTheme = isDarkTheme.value ? 'light' : 'dark'
+  localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+  applyTheme(nextTheme)
+  showDropNotice('info', `已切换到${nextTheme === 'dark' ? '深色' : '浅色'}主题`)
+}
+
+function getReaderContextMenuActionLabel(action: ReaderContextMenuAction): string {
+  const actionItem = readerContextMenuItems.value.find(
+    (item): item is Extract<ReaderContextMenuItem, { kind: 'action' }> => item.kind === 'action' && item.action === action,
+  )
+  return actionItem?.label || action
+}
+
+async function handleReaderContextMenuAction(action: ReaderContextMenuAction) {
+  const file = currentFile.value
+  closeReaderContextMenu()
+
+  if (action === 'toggle-theme') {
+    toggleTheme()
+    return
+  }
+
+  if (!file || !isCurrentMarkdownFile.value) {
+    showDropNotice('error', '当前没有可操作的文档')
+    return
+  }
+
+  try {
+    switch (action) {
+      case 'open-directory':
+        await openCurrentDocumentDirectory(file.path)
+        showDropNotice('info', '已打开当前 md 文档目录')
+        return
+      case 'copy-path':
+        await writeClipboardText(file.path)
+        showDropNotice('info', '已复制当前 md 路径')
+        return
+      case 'copy-content':
+        await writeClipboardText(file.content)
+        showDropNotice('info', '已复制当前 md 内容')
+        return
+      case 'refresh-document':
+        await refreshCurrentDocument()
+        showDropNotice('info', '已刷新当前文档')
+        return
+    }
+  } catch (error) {
+    console.error('[XMReader] 文档右键菜单操作失败:', error)
+    showDropNotice('error', `${getReaderContextMenuActionLabel(action)}失败`)
+  }
+}
+
+function handleDocumentPointerDown(event: MouseEvent) {
+  if (!readerContextMenu.value.visible) return
+  if (readerContextMenuRef.value?.contains(event.target as Node)) return
+  closeReaderContextMenu()
+}
+
+function handleGlobalContextMenu(event: MouseEvent) {
+  if (!readerContextMenu.value.visible) return
+  if (readerContextMenuRef.value?.contains(event.target as Node)) return
+  closeReaderContextMenu()
 }
 
 function handleReaderLinkClick(event: MouseEvent) {
@@ -419,13 +670,16 @@ function resetDragState() {
 }
 
 function syncSystemTheme() {
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+  applyTheme(resolveThemePreference())
 }
 
 function setupSystemThemeSync() {
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)')
-  const handleThemeChange = () => syncSystemTheme()
+  const handleThemeChange = () => {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+    if (savedTheme === 'dark' || savedTheme === 'light') return
+    syncSystemTheme()
+  }
   syncSystemTheme()
 
   if (systemThemeMedia.addEventListener) {
@@ -650,6 +904,12 @@ function loadFiles() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && readerContextMenu.value.visible) {
+    e.preventDefault()
+    closeReaderContextMenu()
+    return
+  }
+
   switch (e.key) {
     case 'ArrowLeft':
     case 'ArrowUp':
@@ -669,6 +929,9 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function handleReaderScroll() {
+  if (readerContextMenu.value.visible) {
+    closeReaderContextMenu()
+  }
   showScrollTop.value = (readerContainer.value?.scrollTop || 0) > 300
   updateActiveOutline()
 }
@@ -687,6 +950,7 @@ function scrollToBottom() {
 
 watch(currentIndex, () => {
   nextTick(() => {
+    closeReaderContextMenu()
     readerContainer.value?.scrollTo({ top: 0 })
     showScrollTop.value = false
     activeOutlineId.value = ''
@@ -697,6 +961,7 @@ watch(currentIndex, () => {
 watch(currentFile, (file) => {
   syncWindowTitle(file)
   nextTick(() => {
+    closeReaderContextMenu()
     readerContainer.value?.scrollTo({ top: 0 })
     showScrollTop.value = false
     activeOutlineId.value = ''
@@ -719,6 +984,9 @@ onMounted(() => {
   registerFileDrop()
   registerFileOpenEvent()
   document.addEventListener('keydown', handleKeydown)
+  document.addEventListener('mousedown', handleDocumentPointerDown)
+  document.addEventListener('contextmenu', handleGlobalContextMenu)
+  window.addEventListener('resize', closeReaderContextMenu)
   window.addEventListener('dragenter', handleWindowDragEnter)
   window.addEventListener('dragover', handleWindowDragOver)
   window.addEventListener('dragleave', handleWindowDragLeave)
@@ -727,6 +995,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('mousedown', handleDocumentPointerDown)
+  document.removeEventListener('contextmenu', handleGlobalContextMenu)
+  window.removeEventListener('resize', closeReaderContextMenu)
   window.removeEventListener('dragenter', handleWindowDragEnter)
   window.removeEventListener('dragover', handleWindowDragOver)
   window.removeEventListener('dragleave', handleWindowDragLeave)

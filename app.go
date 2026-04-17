@@ -8,14 +8,16 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/daotor/xmreader/internal/fileview"
 	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const fileOpenedEvent = "xmreader:file-opened"
@@ -211,14 +213,14 @@ func collectExistingFilePaths(args []string, workingDirectory string) []string {
 
 func (a *App) focusWindow() {
 	if a.ctx != nil {
-		runtime.WindowShow(a.ctx)
-		runtime.WindowUnminimise(a.ctx)
+		wailsruntime.WindowShow(a.ctx)
+		wailsruntime.WindowUnminimise(a.ctx)
 	}
 }
 
 func (a *App) emitOpenedFiles(paths []string) {
 	if a.ctx != nil && len(paths) > 0 {
-		runtime.EventsEmit(a.ctx, fileOpenedEvent, paths)
+		wailsruntime.EventsEmit(a.ctx, fileOpenedEvent, paths)
 	}
 }
 
@@ -309,8 +311,63 @@ func (a *App) EmitFiles() {
 	a.mu.RUnlock()
 
 	if a.ctx != nil && len(files) > 0 {
-		runtime.EventsEmit(a.ctx, "file-data", files)
+		wailsruntime.EventsEmit(a.ctx, "file-data", files)
 	}
+}
+
+// OpenDocumentDirectory opens the directory containing the specified document.
+func (a *App) OpenDocumentDirectory(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("文档路径不能为空")
+	}
+
+	normalizedPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("无法定位文档目录: %w", err)
+	}
+
+	directoryPath := filepath.Dir(normalizedPath)
+	directoryInfo, err := os.Stat(directoryPath)
+	if err != nil {
+		return fmt.Errorf("无法访问文档目录: %w", err)
+	}
+	if !directoryInfo.IsDir() {
+		return fmt.Errorf("文档目录无效: %s", directoryPath)
+	}
+
+	if err := openDirectoryInFileManager(directoryPath); err != nil {
+		return fmt.Errorf("打开文档目录失败: %w", err)
+	}
+
+	return nil
+}
+
+func openDirectoryInFileManager(directoryPath string) error {
+	var command string
+	var args []string
+
+	switch goruntime.GOOS {
+	case "windows":
+		command = "explorer.exe"
+		args = []string{directoryPath}
+	case "darwin":
+		command = "open"
+		args = []string{directoryPath}
+	default:
+		command = "xdg-open"
+		args = []string{directoryPath}
+	}
+
+	output, err := exec.Command(command, args...).CombinedOutput()
+	if err != nil {
+		details := strings.TrimSpace(string(output))
+		if details != "" {
+			return fmt.Errorf("%s %s: %w", command, details, err)
+		}
+		return fmt.Errorf("%s: %w", command, err)
+	}
+
+	return nil
 }
 
 // FileInfo represents a loaded markdown file
