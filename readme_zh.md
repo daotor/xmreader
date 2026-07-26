@@ -105,7 +105,7 @@ wails build -clean -webview2 embed -o xmreader.exe
 ```
 
 Windows 正式分发请优先使用 `wails build`，不要使用裸 `go build`。
-`assets/appicon.png` 是应用图标的唯一源文件。构建资源准备命令会把它复制到 Wails 约定的位置，并在打包前清除陈旧的 Windows 生成图标。
+平台应用图标素材分别位于 `assets/icons/windows/` 和 `assets/icons/macos/`。构建资源准备命令通过 `XMREADER_ICON_APPEARANCE=dark|light` 选择 `appicon-dark.png` 或 `appicon.png`，复制到 Wails 约定的位置，并在打包前清除陈旧的 Windows 生成图标。默认值为 `dark`，GitHub Actions 发布流程也显式固定为该值；构建前把变量设为 `light` 可生成浅色图标版本。`assets/appicon.png` 继续作为其他平台的回退素材。
 
 ## GitHub Release 自动发布
 

@@ -6,6 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+const (
+	iconAppearanceEnv     = "XMREADER_ICON_APPEARANCE"
+	defaultIconAppearance = "dark"
 )
 
 func main() {
@@ -19,15 +26,54 @@ func main() {
 }
 
 func run(projectRoot string, output io.Writer) error {
-	if err := prepareBuildAssets(projectRoot); err != nil {
+	appearance, err := resolveIconAppearance(os.Getenv(iconAppearanceEnv))
+	if err != nil {
 		return err
 	}
-	_, err := fmt.Fprintln(output, "Prepared Wails app icon: assets/appicon.png -> build/appicon.png")
+	if err := prepareBuildAssetsForPlatform(projectRoot, runtime.GOOS, appearance); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(output, "Prepared Wails %s app icon for %s -> build/appicon.png\n", appearance, runtime.GOOS)
 	return err
 }
 
 func prepareBuildAssets(projectRoot string) error {
-	sourceIcon := filepath.Join(projectRoot, "assets", "appicon.png")
+	appearance, err := resolveIconAppearance(os.Getenv(iconAppearanceEnv))
+	if err != nil {
+		return err
+	}
+	return prepareBuildAssetsForPlatform(projectRoot, runtime.GOOS, appearance)
+}
+
+func resolveIconAppearance(value string) (string, error) {
+	appearance := strings.ToLower(strings.TrimSpace(value))
+	if appearance == "" {
+		return defaultIconAppearance, nil
+	}
+	if appearance != "light" && appearance != "dark" {
+		return "", fmt.Errorf("invalid %s %q: want light or dark", iconAppearanceEnv, value)
+	}
+	return appearance, nil
+}
+
+func sourceIconPath(projectRoot, platform, appearance string) string {
+	fileName := "appicon.png"
+	if appearance == "dark" {
+		fileName = "appicon-dark.png"
+	}
+
+	switch platform {
+	case "windows":
+		return filepath.Join(projectRoot, "assets", "icons", "windows", fileName)
+	case "darwin":
+		return filepath.Join(projectRoot, "assets", "icons", "macos", fileName)
+	default:
+		return filepath.Join(projectRoot, "assets", "appicon.png")
+	}
+}
+
+func prepareBuildAssetsForPlatform(projectRoot, platform, appearance string) error {
+	sourceIcon := sourceIconPath(projectRoot, platform, appearance)
 	destinationIcon := filepath.Join(projectRoot, "build", "appicon.png")
 
 	content, err := os.ReadFile(sourceIcon)

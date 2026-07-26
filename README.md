@@ -105,7 +105,7 @@ wails build -clean -webview2 embed -o xmreader.exe
 ```
 
 For Windows releases, prefer `wails build` instead of plain `go build`.
-`assets/appicon.png` is the canonical application icon. The preparation command copies it to the location expected by Wails and removes stale generated Windows icons before packaging.
+Platform application icon assets live under `assets/icons/windows/` and `assets/icons/macos/`. The preparation command uses `XMREADER_ICON_APPEARANCE=dark|light` to select `appicon-dark.png` or `appicon.png`, copies it to the location expected by Wails, and removes stale generated Windows icons before packaging. The default is `dark`, and the GitHub Actions release workflow explicitly pins that value; set the variable to `light` before building to produce a light-icon package. `assets/appicon.png` remains the fallback for other platforms.
 
 ## GitHub Release Automation
 

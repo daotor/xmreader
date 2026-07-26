@@ -8,6 +8,88 @@ import (
 	"testing"
 )
 
+func writeTestAsset(t *testing.T, projectRoot, relativePath string, content []byte) {
+	t.Helper()
+
+	assetPath := filepath.Join(projectRoot, filepath.FromSlash(relativePath))
+	if err := os.MkdirAll(filepath.Dir(assetPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(assetPath, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPrepareBuildAssetsSelectsPlatformIcon(t *testing.T) {
+	testCases := []struct {
+		platform   string
+		appearance string
+		want       []byte
+	}{
+		{platform: "windows", appearance: "dark", want: []byte("windows-dark-icon")},
+		{platform: "windows", appearance: "light", want: []byte("windows-light-icon")},
+		{platform: "darwin", appearance: "dark", want: []byte("macos-dark-icon")},
+		{platform: "darwin", appearance: "light", want: []byte("macos-light-icon")},
+		{platform: "linux", appearance: "dark", want: []byte("fallback-icon")},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.platform+"-"+testCase.appearance, func(t *testing.T) {
+			projectRoot := t.TempDir()
+			writeTestAsset(t, projectRoot, "assets/appicon.png", []byte("fallback-icon"))
+			writeTestAsset(t, projectRoot, "assets/icons/windows/appicon.png", []byte("windows-light-icon"))
+			writeTestAsset(t, projectRoot, "assets/icons/windows/appicon-dark.png", []byte("windows-dark-icon"))
+			writeTestAsset(t, projectRoot, "assets/icons/macos/appicon.png", []byte("macos-light-icon"))
+			writeTestAsset(t, projectRoot, "assets/icons/macos/appicon-dark.png", []byte("macos-dark-icon"))
+
+			if err := prepareBuildAssetsForPlatform(projectRoot, testCase.platform, testCase.appearance); err != nil {
+				t.Fatalf("prepareBuildAssetsForPlatform() error = %v", err)
+			}
+
+			got, err := os.ReadFile(filepath.Join(projectRoot, "build", "appicon.png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, testCase.want) {
+				t.Fatalf("build icon = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestResolveIconAppearance(t *testing.T) {
+	testCases := []struct {
+		name    string
+		value   string
+		want    string
+		wantErr bool
+	}{
+		{name: "default", value: "", want: "dark"},
+		{name: "dark", value: "dark", want: "dark"},
+		{name: "light", value: "light", want: "light"},
+		{name: "normalized", value: " LIGHT ", want: "light"},
+		{name: "invalid", value: "system", wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := resolveIconAppearance(testCase.value)
+			if testCase.wantErr {
+				if err == nil {
+					t.Fatalf("resolveIconAppearance(%q) error = nil", testCase.value)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolveIconAppearance(%q) error = %v", testCase.value, err)
+			}
+			if got != testCase.want {
+				t.Fatalf("resolveIconAppearance(%q) = %q, want %q", testCase.value, got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestPrepareBuildAssetsCopiesCanonicalIcon(t *testing.T) {
 	projectRoot := t.TempDir()
 	sourceIcon := filepath.Join(projectRoot, "assets", "appicon.png")
@@ -21,8 +103,8 @@ func TestPrepareBuildAssetsCopiesCanonicalIcon(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := prepareBuildAssets(projectRoot); err != nil {
-		t.Fatalf("prepareBuildAssets() error = %v", err)
+	if err := prepareBuildAssetsForPlatform(projectRoot, "linux", "dark"); err != nil {
+		t.Fatalf("prepareBuildAssetsForPlatform() error = %v", err)
 	}
 
 	got, err := os.ReadFile(destinationIcon)
@@ -57,8 +139,8 @@ func TestPrepareBuildAssetsRemovesGeneratedWindowsIcons(t *testing.T) {
 		}
 	}
 
-	if err := prepareBuildAssets(projectRoot); err != nil {
-		t.Fatalf("prepareBuildAssets() error = %v", err)
+	if err := prepareBuildAssetsForPlatform(projectRoot, "linux", "dark"); err != nil {
+		t.Fatalf("prepareBuildAssetsForPlatform() error = %v", err)
 	}
 
 	for _, iconPath := range generatedIcons {
@@ -70,20 +152,31 @@ func TestPrepareBuildAssetsRemovesGeneratedWindowsIcons(t *testing.T) {
 
 func TestRunReportsPreparedIcon(t *testing.T) {
 	projectRoot := t.TempDir()
-	sourceIcon := filepath.Join(projectRoot, "assets", "appicon.png")
-	if err := os.MkdirAll(filepath.Dir(sourceIcon), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(sourceIcon, []byte("custom-app-icon"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	t.Setenv("XMREADER_ICON_APPEARANCE", "")
+	writeTestAsset(t, projectRoot, "assets/appicon.png", []byte("fallback-icon"))
+	writeTestAsset(t, projectRoot, "assets/icons/windows/appicon-dark.png", []byte("windows-dark-icon"))
+	writeTestAsset(t, projectRoot, "assets/icons/macos/appicon-dark.png", []byte("macos-dark-icon"))
 
 	var output bytes.Buffer
 	if err := run(projectRoot, &output); err != nil {
 		t.Fatalf("run() error = %v", err)
 	}
-	if !strings.Contains(output.String(), "assets/appicon.png -> build/appicon.png") {
+	if !strings.Contains(output.String(), "build/appicon.png") {
 		t.Fatalf("run() output = %q", output.String())
+	}
+	if !strings.Contains(output.String(), "dark") {
+		t.Fatalf("run() output does not report dark appearance: %q", output.String())
+	}
+}
+
+func TestGitHubActionsDefaultsToDarkIcon(t *testing.T) {
+	workflowPath := filepath.Clean(filepath.Join("..", "..", ".github", "workflows", "release.yml"))
+	content, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("XMREADER_ICON_APPEARANCE: dark")) {
+		t.Fatalf("%s does not default release builds to the dark icon", workflowPath)
 	}
 }
 
