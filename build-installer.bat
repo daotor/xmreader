@@ -35,24 +35,29 @@ if not exist "%WAILS%" (
 echo   Go / bun / makensis / wails: OK
 
 echo.
-echo [1/4] Installing frontend dependencies...
+echo [1/5] Installing frontend dependencies...
 cd /d "%FRONTEND_DIR%"
 call bun install
 if errorlevel 1 goto :fail
 
 echo.
-echo [2/4] Building frontend...
+echo [2/5] Building frontend...
 call bun run build
 if errorlevel 1 goto :fail
 
 echo.
-echo [3/4] Building Windows installer...
+echo [3/5] Preparing application icon...
 cd /d "%PROJECT_DIR%"
+go run ./scripts/buildassets
+if errorlevel 1 goto :fail
+
+echo.
+echo [4/5] Building Windows installer...
 "%WAILS%" build -clean -s -skipbindings -webview2 embed -nsis -o "%EXE_NAME%"
 if errorlevel 1 goto :fail
 
 echo.
-echo [4/4] Done
+echo [5/5] Done
 echo   Check build\bin for the generated NSIS installer package.
 pause
 exit /b 0

@@ -100,10 +100,12 @@ bun install
 bun run build
 
 cd ..
+go run ./scripts/buildassets
 wails build -clean -webview2 embed -o xmreader.exe
 ```
 
 For Windows releases, prefer `wails build` instead of plain `go build`.
+`assets/appicon.png` is the canonical application icon. The preparation command copies it to the location expected by Wails and removes stale generated Windows icons before packaging.
 
 ## GitHub Release Automation
 

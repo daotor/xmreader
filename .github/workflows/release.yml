@@ -111,6 +111,10 @@ jobs:
         working-directory: frontend
         run: bun run build
 
+      - name: Prepare Wails build assets
+        shell: pwsh
+        run: go run ./scripts/buildassets
+
       - name: Build Windows binary
         shell: pwsh
         run: wails build -clean -o xmreader.exe -webview2 embed -s -skipbindings

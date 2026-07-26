@@ -14,7 +14,7 @@ echo ============================================
 echo.
 
 :: 1. Check dependencies
-echo [1/5] Checking environment...
+echo [1/6] Checking environment...
 where go >nul 2>&1
 if errorlevel 1 (
     echo   [ERROR] Go not installed
@@ -33,7 +33,7 @@ echo   Go / bun / wails: OK
 
 :: 2. Install frontend deps
 echo.
-echo [2/5] Installing frontend dependencies...
+echo [2/6] Installing frontend dependencies...
 cd /d "%FRONTEND_DIR%"
 call bun install >nul 2>&1
 if errorlevel 1 (
@@ -44,7 +44,7 @@ echo   Done
 
 :: 3. Build frontend
 echo.
-echo [3/5] Building frontend (Vite)...
+echo [3/6] Building frontend (Vite)...
 call bunx vite build
 if errorlevel 1 (
     echo   [FAIL] vite build
@@ -52,10 +52,20 @@ if errorlevel 1 (
 )
 echo   Done
 
-:: 4. Compile exe with Wails production tags and embedded WebView2 bootstrapper
+:: 4. Prepare Wails build assets from the canonical app icon
 echo.
-echo [4/5] Compiling exe (Go + Wails)...
+echo [4/6] Preparing application icon...
 cd /d "%PROJECT_DIR%"
+go run ./scripts/buildassets
+if errorlevel 1 (
+    echo   [FAIL] application icon preparation
+    goto :fail
+)
+echo   Done
+
+:: 5. Compile exe with Wails production tags and embedded WebView2 bootstrapper
+echo.
+echo [5/6] Compiling exe (Go + Wails)...
 "%WAILS%" build -clean -o "%EXE_NAME%" -webview2 embed -s -skipbindings
 if errorlevel 1 (
     echo   [FAIL] wails build
@@ -63,9 +73,9 @@ if errorlevel 1 (
 )
 echo   Done
 
-:: 5. Result
+:: 6. Result
 echo.
-echo [5/5] Build success!
+echo [6/6] Build success!
 for %%F in ("%OUTPUT_DIR%\%EXE_NAME%") do (
     echo   Output: %%~nxF
     echo   Path:   %%~fF

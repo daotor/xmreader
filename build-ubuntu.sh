@@ -68,7 +68,7 @@ fi
 
 detect_arch
 
-echo "[1/5] Checking environment..."
+echo "[1/6] Checking environment..."
 for cmd in go bun wails pkg-config tar; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "  [ERROR] $cmd not found"
@@ -89,19 +89,24 @@ echo "  - gtk+-3.0: OK"
 echo "  - $WEBKIT_PKG: OK"
 
 echo ""
-echo "[2/5] Installing frontend dependencies..."
+echo "[2/6] Installing frontend dependencies..."
 cd "$FRONTEND_DIR"
 bun install
 echo "  Done"
 
 echo ""
-echo "[3/5] Building frontend (Vite)..."
+echo "[3/6] Building frontend (Vite)..."
 bun run build
 echo "  Done"
 
 echo ""
-echo "[4/5] Building Linux app (Go + Wails)..."
+echo "[4/6] Preparing application icon..."
 cd "$SCRIPT_DIR"
+go run ./scripts/buildassets
+echo "  Done"
+
+echo ""
+echo "[5/6] Building Linux app (Go + Wails)..."
 BUILD_CMD=(wails build -platform "linux/${TARGET_ARCH}" -clean -o "$APP_NAME" -s -skipbindings)
 if [[ ${#WAILS_TAG_ARGS[@]} -gt 0 ]]; then
   BUILD_CMD+=("${WAILS_TAG_ARGS[@]}")
@@ -110,7 +115,7 @@ fi
 echo "  Done"
 
 echo ""
-echo "[5/5] Packaging tar.gz..."
+echo "[6/6] Packaging tar.gz..."
 mkdir -p "$OUTPUT_DIR"
 if [[ ! -f "$OUTPUT_DIR/$APP_NAME" ]]; then
   echo "  [FAIL] Built binary not found: $OUTPUT_DIR/$APP_NAME"

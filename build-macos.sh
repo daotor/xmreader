@@ -16,7 +16,7 @@ echo "============================================"
 echo ""
 
 # 1. Check dependencies
-echo "[1/5] Checking environment..."
+echo "[1/6] Checking environment..."
 for cmd in go bun wails; do
     if ! command -v "$cmd" &>/dev/null; then
         echo "  [X] $cmd not found"
@@ -31,27 +31,33 @@ done
 
 # 2. Install frontend dependencies
 echo ""
-echo "[2/5] Installing frontend dependencies..."
+echo "[2/6] Installing frontend dependencies..."
 cd "$FRONTEND_DIR"
 bun install
 echo "  Done"
 
 # 3. Build frontend
 echo ""
-echo "[3/5] Building frontend (Vite)..."
+echo "[3/6] Building frontend (Vite)..."
 bun run build
 echo "  Done"
 
-# 4. Build universal macOS app
+# 4. Prepare Wails build assets
 echo ""
-echo "[4/5] Building universal macOS app (Go + Wails)..."
+echo "[4/6] Preparing application icon..."
 cd "$SCRIPT_DIR"
+go run ./scripts/buildassets
+echo "  Done"
+
+# 5. Build universal macOS app
+echo ""
+echo "[5/6] Building universal macOS app (Go + Wails)..."
 wails build -platform darwin/universal -clean -o "$APP_NAME" -s -skipbindings
 echo "  Done"
 
-# 5. Package DMG if available
+# 6. Package DMG if available
 echo ""
-echo "[5/5] Packaging installer..."
+echo "[6/6] Packaging installer..."
 if [ -d "$APP_BUNDLE" ]; then
     echo "  App bundle: $APP_BUNDLE"
 else
