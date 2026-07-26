@@ -14,6 +14,8 @@ permissions:
 
 env:
   NODE_OPTIONS: --max-old-space-size=4096
+  # The Go 1.22-built Wails CLI omits LC_UUID and cannot execute on macOS 26.
+  GO_VERSION: '1.26.5'
   WAILS_VERSION: v2.12.0
   XMREADER_ICON_APPEARANCE: dark
 
@@ -83,7 +85,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
 
       - name: Setup Bun
@@ -135,7 +137,7 @@ jobs:
 
   build-macos:
     name: Build macOS
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: prepare
     env:
       RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
@@ -147,7 +149,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
 
       - name: Setup Bun
@@ -160,7 +162,9 @@ jobs:
         run: |
           set -euo pipefail
           go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          wails_bin="$(go env GOPATH)/bin/wails"
+          "$wails_bin" version
+          echo "$(dirname "$wails_bin")" >> "$GITHUB_PATH"
 
       - name: Sync Wails product version
         shell: bash
@@ -207,7 +211,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: go.sum
 
       - name: Setup Bun
