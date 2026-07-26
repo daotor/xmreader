@@ -88,6 +88,7 @@ body.be-theme-dark {
   --be-primary: #60a5fa;
   --be-primary-light: #1e3a5f;
   --be-code-bg: #26282d;
+  --be-code-body-bg: #17181b;
   --be-inline-code-bg: #343840;
   --be-inline-code-border: rgba(129, 135, 148, 0.34);
   --be-inline-code-text: #f3f4f6;
@@ -95,6 +96,7 @@ body.be-theme-dark {
   --be-active-bg: #1e3a5f;
   --be-icon: #bbb;
   --be-icon-hover: #e0e0e0;
+  --be-toolbar-bg: #2c2e33;
 }
 
 /* === 深色主题滚动条 === */

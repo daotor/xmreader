@@ -13,14 +13,27 @@ let initialized = false
 let observer: MutationObserver | null = null
 let mediaQuery: MediaQueryList | null = null
 let handleMediaChange: ((event: MediaQueryListEvent) => void) | null = null
+let activeConsumers = 0
+let applyThemeFrame: number | null = null
 
 /** 将当前主题状态同步到 DOM */
 function applyTheme() {
-  const editorRoot = document.querySelector('.block-editor')
-  if (editorRoot) {
+  document.querySelectorAll('.block-editor').forEach((editorRoot) => {
     editorRoot.classList.toggle('theme-dark', isDark.value)
-  }
+  })
   document.body.classList.toggle('be-theme-dark', isDark.value)
+}
+
+function scheduleApplyTheme() {
+  if (applyThemeFrame !== null) {
+    cancelAnimationFrame(applyThemeFrame)
+  }
+  applyThemeFrame = requestAnimationFrame(() => {
+    applyThemeFrame = null
+    if (activeConsumers > 0) {
+      applyTheme()
+    }
+  })
 }
 
 /** 从外层页面读取当前主题 */
@@ -67,11 +80,15 @@ function init() {
   }
 
   // 首次应用（需等 DOM 就绪）
-  requestAnimationFrame(() => applyTheme())
+  scheduleApplyTheme()
 }
 
 /** 销毁监听 */
 function destroy() {
+  if (applyThemeFrame !== null) {
+    cancelAnimationFrame(applyThemeFrame)
+    applyThemeFrame = null
+  }
   if (observer) {
     observer.disconnect()
     observer = null
@@ -106,13 +123,19 @@ function toggleTheme() {
  */
 export function useTheme() {
   onMounted(() => {
-    init()
+    activeConsumers += 1
+    if (activeConsumers === 1) {
+      init()
+    }
     // 每次挂载时重新同步 DOM（防止动态渲染的 .block-editor 未被应用）
-    requestAnimationFrame(() => applyTheme())
+    scheduleApplyTheme()
   })
 
   onBeforeUnmount(() => {
-    destroy()
+    activeConsumers = Math.max(0, activeConsumers - 1)
+    if (activeConsumers === 0) {
+      destroy()
+    }
   })
 
   return {

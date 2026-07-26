@@ -2,8 +2,8 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/vue-3'
 import type { Editor } from '@tiptap/core'
-
-type MermaidModule = typeof import('mermaid').default
+import MermaidFullscreenViewer from './MermaidFullscreenViewer.vue'
+import { renderMermaidSvg } from '../utils/mermaid-renderer'
 
 const props = defineProps<{
 	node: any
@@ -12,17 +12,6 @@ const props = defineProps<{
 	editor: Editor
 	getPos: () => number
 }>()
-
-let mermaidModulePromise: Promise<MermaidModule> | null = null
-let mermaidRenderCounter = 0
-
-function loadMermaid() {
-	if (!mermaidModulePromise) {
-		mermaidModulePromise = import('mermaid').then((module) => module.default)
-	}
-
-	return mermaidModulePromise
-}
 
 // ==================== 语言选择 ====================
 const showLangDropdown = ref(false)
@@ -103,12 +92,20 @@ const mermaidSvg = ref('')
 const mermaidError = ref('')
 const isRenderingMermaid = ref(false)
 const showSourceEditor = computed(() => !isMermaid.value || isEditable.value || !!mermaidError.value)
+const isMermaidFullscreenOpen = ref(false)
+const canOpenMermaidFullscreen = computed(() => (
+	isMermaid.value
+	&& !!mermaidSvg.value
+	&& !mermaidError.value
+	&& !isRenderingMermaid.value
+))
 
 let mermaidRenderToken = 0
 let mermaidRenderTimer: ReturnType<typeof setTimeout> | null = null
 let themeObserver: MutationObserver | null = null
 let mermaidRefreshFrame: number | null = null
 let lastMermaidRenderSignature = ''
+let isNodeViewDisposed = false
 
 function getMermaidTheme() {
 	return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default'
@@ -151,16 +148,7 @@ async function renderMermaidDiagram() {
 	mermaidError.value = ''
 
 	try {
-		const mermaid = await loadMermaid()
-		mermaid.initialize({
-			startOnLoad: false,
-			securityLevel: 'loose',
-			suppressErrorRendering: true,
-			theme: getMermaidTheme(),
-		})
-
-		const renderId = `xmreader-mermaid-${++mermaidRenderCounter}`
-		const { svg } = await mermaid.render(renderId, source)
+		const svg = await renderMermaidSvg(source, getMermaidTheme())
 		if (token !== mermaidRenderToken) return
 
 		mermaidSvg.value = svg
@@ -210,16 +198,28 @@ function requestMermaidRender(force = false) {
 }
 
 function queueMermaidRender(force = false) {
+	if (isNodeViewDisposed) return
 	nextTick(() => {
+		if (isNodeViewDisposed) return
 		if (mermaidRefreshFrame !== null) {
 			cancelAnimationFrame(mermaidRefreshFrame)
 		}
 
 		mermaidRefreshFrame = requestAnimationFrame(() => {
 			mermaidRefreshFrame = null
+			if (isNodeViewDisposed) return
 			requestMermaidRender(force)
 		})
 	})
+}
+
+function openMermaidFullscreen() {
+	if (!canOpenMermaidFullscreen.value) return
+	isMermaidFullscreenOpen.value = true
+}
+
+function closeMermaidFullscreen() {
+	isMermaidFullscreenOpen.value = false
 }
 
 // ==================== 固定高度 ====================
@@ -365,7 +365,14 @@ watch(currentLanguage, () => {
 	queueMermaidRender(true)
 })
 
+watch([isMermaid, mermaidSvg, mermaidError], ([mermaid, svg, error]) => {
+	if (!mermaid || !svg || !!error) {
+		closeMermaidFullscreen()
+	}
+})
+
 onMounted(() => {
+	isNodeViewDisposed = false
 	props.editor?.on('selectionUpdate', onEditorTransaction)
 	props.editor?.on('update', onEditorTransaction)
 	props.editor?.on('update', onEditorUpdate)
@@ -393,6 +400,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+	isNodeViewDisposed = true
+	mermaidRenderToken += 1
+	closeMermaidFullscreen()
 	props.editor?.off('selectionUpdate', onEditorTransaction)
 	props.editor?.off('update', onEditorTransaction)
 	props.editor?.off('update', onEditorUpdate)
@@ -512,6 +522,28 @@ function handleClickOutside(event: MouseEvent) {
 					<span class="cb-action-label">{{ fixedHeight ? '固定' : '自动' }}</span>
 				</button>
 
+				<button
+					v-if="canOpenMermaidFullscreen"
+					class="cb-action-btn"
+					tabindex="-1"
+					title="全屏查看流程图"
+					aria-label="全屏查看 Mermaid 流程图"
+					@click.stop="openMermaidFullscreen"
+				>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
+					</svg>
+					<span class="cb-action-label">全屏</span>
+				</button>
+
 				<button class="cb-action-btn" tabindex="-1" :title="copySuccess ? '已复制' : '复制代码'" @click.stop="copyCode">
 					<svg
 						v-if="!copySuccess"
@@ -591,6 +623,13 @@ function handleClickOutside(event: MouseEvent) {
 			<pre class="cb-pre"><NodeViewContent as="code" class="cb-code" /></pre>
 		</div>
 	</NodeViewWrapper>
+
+	<MermaidFullscreenViewer
+		v-if="isMermaidFullscreenOpen"
+		:svg="mermaidSvg"
+		title="Mermaid 流程图"
+		@close="closeMermaidFullscreen"
+	/>
 </template>
 
 <style scoped>

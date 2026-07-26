@@ -9,7 +9,7 @@
 - 典型的 block 编辑体验，包含顶部工具栏、选中文本气泡工具栏、Slash 菜单、空行 `+` 按钮、块侧边菜单
 - 常用块类型：正文、`H1-H5`、无序列表、有序列表、任务列表、引用、分割线、表格、图片、代码块、高亮块
 - 常用行内格式：粗体、斜体、下划线、删除线、行内代码、链接、文字颜色、背景高亮、字号
-- 代码块增强：语言切换、行号、复制、自动换行、固定高度、Mermaid 流程图预览
+- 代码块增强：语言切换、行号、复制、自动换行、固定高度、Mermaid 流程图预览与全屏查看
 - 块交互能力：悬浮拖拽手柄、拖拽排序、复制块、删除块、块类型快速切换
 - 内容可从 TipTap JSON 字符串或 Markdown 字符串初始化
 - 通过组件暴露方法可导出 JSON、HTML、Markdown
@@ -23,6 +23,7 @@
 - `marked` 用于 Markdown 导入
 - `lowlight` + `highlight.js` 用于代码高亮
 - `mermaid` 用于流程图预览
+- `d3-selection` + `d3-zoom` 用于全屏流程图缩放和平移
 
 ## 快速接入
 
@@ -82,6 +83,8 @@ function handleSave(json: string) {
 ```
 
 如果 Markdown 中包含相对路径图片或本地链接，建议传入 `documentUrl`。
+
+Mermaid SVG 渲染完成后，代码块工具栏会显示“全屏”入口。全屏视图直接复用当前 SVG，支持以鼠标位置为中心的滚轮缩放、按住鼠标左键拖动、工具栏缩放/适合窗口，以及 `Esc` 退出；编辑模式下全屏视图仍保持只读。
 
 ## 组件 API
 
@@ -149,7 +152,7 @@ function handleSave(json: string) {
 - Markdown 往返转换是“尽力而为”，不是完全无损。字号、文本对齐、行内高亮颜色、代码块固定高度等编辑器特有属性不会被完整保留
 - 默认图片插入流程会把图片保存为 base64 Data URL，适合本地开发或演示，不太适合生产环境
 - 本地文件资源重写当前默认面向 XMReader 的 Wails 路由 `/__xmreader_local_file__/...`。如果你在普通 Web 项目里复用这个编辑器，通常需要按自己的资源服务方式改造 `markdown-parser.ts`
-- 当前主题同步逻辑是页面级的，更适合单页里只挂载一个编辑器实例的场景
+- 主题同步仍是页面级行为；同一页面的所有 BlockEditor 实例共享外层 `data-theme` 主题
 
 ## 关键文件
 
@@ -157,8 +160,10 @@ function handleSave(json: string) {
 - `components/EditorToolbar.vue`：顶部工具栏
 - `components/BubbleToolbar.vue`：选中文本后的浮动工具栏
 - `components/CodeBlockView.vue`：自定义代码块视图
+- `components/MermaidFullscreenViewer.vue`：Mermaid 全屏缩放与平移视图
 - `composables/useBlockEditor.ts`：编辑器创建与内容解析入口
 - `extensions/starter-kit.ts`：TipTap 扩展注册
 - `utils/markdown-parser.ts`：Markdown 转 HTML/内容
 - `utils/markdown-serializer.ts`：TipTap JSON 转 Markdown
+- `utils/mermaid-viewport.ts`：Mermaid SVG 尺寸读取与适合窗口计算
 

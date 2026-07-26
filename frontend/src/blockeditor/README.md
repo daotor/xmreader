@@ -9,7 +9,7 @@ This editor was originally developed for XMReader and lives as source code insid
 - Block-based editing UX with a top toolbar, bubble toolbar, slash menu, plus button, and block side menu
 - Common blocks: paragraph, headings `H1-H5`, bullet list, ordered list, task list, blockquote, divider, table, image, code block, and highlight block
 - Rich text marks: bold, italic, underline, strike, inline code, link, text color, background highlight, and font size
-- Code block extras: language picker, line numbers, copy button, word wrap, fixed-height mode, and Mermaid diagram preview
+- Code block extras: language picker, line numbers, copy button, word wrap, fixed-height mode, and Mermaid diagram preview/fullscreen viewing
 - Block interactions: hover handle, drag to reorder, duplicate, delete, and quick type switching
 - Content input as TipTap JSON string or Markdown string
 - Content export through component methods: JSON, HTML, and Markdown
@@ -23,6 +23,7 @@ This editor was originally developed for XMReader and lives as source code insid
 - `marked` for Markdown import
 - `lowlight` + `highlight.js` for code highlighting
 - `mermaid` for diagram preview
+- `d3-selection` + `d3-zoom` for fullscreen diagram zooming and panning
 
 ## Quick Start
 
@@ -82,6 +83,8 @@ Use this mode when you want Markdown-style document rendering without editing ch
 ```
 
 `documentUrl` is important when the Markdown contains relative images or local links.
+
+After a Mermaid SVG finishes rendering, its code-block toolbar exposes a fullscreen action. The fullscreen view reuses that SVG and supports pointer-centered wheel zoom, left-button drag panning, toolbar zoom/fit controls, and `Escape` to close. It remains read-only even when the surrounding editor is editable.
 
 ## Component API
 
@@ -149,7 +152,7 @@ Use this mode when you want Markdown-style document rendering without editing ch
 - Markdown round-tripping is best-effort, not lossless. Editor-specific attributes such as font size, text alignment, inline highlight color, and code-block fixed-height state are not preserved exactly
 - The default image insert flow stores images as base64 data URLs. This is convenient for local use, but usually not ideal for production
 - Local file asset rewriting currently targets XMReader's Wails route `/__xmreader_local_file__/...`. If you reuse this editor in a plain web app, adapt `markdown-parser.ts` to your own asset-serving strategy
-- The current theme sync helper is page-global and is best suited to single-editor pages
+- Theme synchronization remains page-global; every BlockEditor on a page follows the same outer `data-theme` value
 
 ## Key Files
 
@@ -157,8 +160,10 @@ Use this mode when you want Markdown-style document rendering without editing ch
 - `components/EditorToolbar.vue`: top toolbar
 - `components/BubbleToolbar.vue`: text selection toolbar
 - `components/CodeBlockView.vue`: custom code block node view
+- `components/MermaidFullscreenViewer.vue`: fullscreen Mermaid zoom and pan view
 - `composables/useBlockEditor.ts`: editor creation and content resolution
 - `extensions/starter-kit.ts`: TipTap extension registry
 - `utils/markdown-parser.ts`: Markdown to HTML/content conversion
 - `utils/markdown-serializer.ts`: TipTap JSON to Markdown conversion
+- `utils/mermaid-viewport.ts`: Mermaid SVG sizing and fit-to-window calculations
 
