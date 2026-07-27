@@ -169,6 +169,50 @@ func TestRunReportsPreparedIcon(t *testing.T) {
 	}
 }
 
+func TestPlatformIconSourcesUseApprovedSingleM(t *testing.T) {
+	projectRoot := filepath.Clean(filepath.Join("..", ".."))
+	paths := []string{
+		"assets/appicon-source.svg",
+		"assets/icons/windows/appicon.svg",
+		"assets/icons/windows/appicon-dark.svg",
+		"assets/icons/macos/appicon.svg",
+		"assets/icons/macos/appicon-dark.svg",
+	}
+	wantSnippets := []string{
+		`translate(105 105) scale(1.26) translate(-77.5 -105)`,
+		`M29 154V56H51L78 101L105 56H126V154H101V101L78 138L54 101V154H29Z`,
+		`M47 58L94 123M109 58L62 123`,
+		`M29 101H54V154H29ZM101 101H126V154H101Z`,
+		`<stop stop-color="#EE584F"/>`,
+		`<stop offset=".66" stop-color="#D23D42"/>`,
+		`<stop offset="1" stop-color="#B83240"/>`,
+		`stroke="#FFAA91" stroke-opacity=".43" stroke-width="3"`,
+	}
+	removedSnippets := []string{
+		`M132 56H158C184 56 195 74 195 105`,
+		`M18 25H192`,
+	}
+
+	for _, relativePath := range paths {
+		t.Run(relativePath, func(t *testing.T) {
+			content, err := os.ReadFile(filepath.Join(projectRoot, filepath.FromSlash(relativePath)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, snippet := range wantSnippets {
+				if !bytes.Contains(content, []byte(snippet)) {
+					t.Fatalf("%s does not contain approved Single M snippet %q", relativePath, snippet)
+				}
+			}
+			for _, snippet := range removedSnippets {
+				if bytes.Contains(content, []byte(snippet)) {
+					t.Fatalf("%s still contains removed icon geometry %q", relativePath, snippet)
+				}
+			}
+		})
+	}
+}
+
 func TestGitHubActionsDefaultsToDarkIcon(t *testing.T) {
 	workflowPath := filepath.Clean(filepath.Join("..", "..", ".github", "workflows", "release.yml"))
 	content, err := os.ReadFile(workflowPath)

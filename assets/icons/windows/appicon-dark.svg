@@ -24,13 +24,12 @@
     </filter>
   </defs>
   <rect width="210" height="210" rx="52" fill="url(#shell)"/>
-  <g filter="url(#md-shadow)">
+  <g filter="url(#md-shadow)" transform="translate(105 105) scale(1.26) translate(-77.5 -105)">
     <path d="M29 154V56H51L78 101L105 56H126V154H101V101L78 138L54 101V154H29Z" fill="url(#md)"/>
-    <path fill-rule="evenodd" d="M132 56H158C184 56 195 74 195 105C195 136 184 154 158 154H132V56ZM157 79V131H160C168 131 172 122 172 105C172 88 168 79 160 79H157Z" fill="url(#md)"/>
+    <g clip-path="url(#m-clip)" fill="none" stroke-linecap="round">
+      <path d="M47 58L94 123M109 58L62 123" stroke="url(#x-red)" stroke-width="18"/>
+      <path d="M49 60L73 93" stroke="#FFAA91" stroke-opacity=".43" stroke-width="3"/>
+    </g>
+    <path d="M29 101H54V154H29ZM101 101H126V154H101Z" fill="url(#md)"/>
   </g>
-  <g clip-path="url(#m-clip)" fill="none" stroke-linecap="round">
-    <path d="M47 58L94 123M109 58L62 123" stroke="url(#x-red)" stroke-width="18"/>
-    <path d="M49 60L73 93" stroke="#FFAA91" stroke-opacity=".43" stroke-width="3"/>
-  </g>
-  <path d="M29 101H54V154H29ZM101 101H126V154H101Z" fill="url(#md)"/>
 </svg>
